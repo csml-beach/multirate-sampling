@@ -17,13 +17,61 @@ class TargetDistribution:
             'banana': (self.banana_distribution, self.banana_grad_log_p),
             'ring': (self.ring_distribution, self.ring_grad_log_p),
             'gaussian': (self.gaussian_distribution, self.gaussian_grad_log_p),
-            'checkerboard': (self.checkerboard_distribution, self.checkerboard_grad_log_p)
+            'checkerboard': (self.checkerboard_distribution, self.checkerboard_grad_log_p),
+            'swiss': (self.curved_gaussian_mixture, self.curved_gaussian_mixture_grad_log_p)
         }
 
         if target not in self.distributions:
             raise ValueError("Invalid target distribution")
 
         self.target_distribution, self.grad_log_p = self.distributions[target]
+    
+
+    def curved_gaussian_mixture(self, x, mu1=torch.tensor([-2.0, -2.0]), mu2=torch.tensor([2.0, 2.0]), 
+                                sigma1=1.0, sigma2=1.0, weight1=0.5, weight2=0.5, curve_strength=4.5):
+        if x.ndim == 1:
+            x = x.reshape(1, -1)
+        x1, x2 = x[..., 0], x[..., 1]
+
+        # Apply a curving transformation (sinusoidal)
+        x2_curved = x2 + curve_strength * torch.sin(x1)
+
+        # Compute Gaussian components
+        gauss1 = torch.exp(-0.5 * (((x1 - mu1[0]) / sigma1)**2 + ((x2_curved - mu1[1]) / sigma1)**2)) / (2 * torch.pi * sigma1**2)
+        gauss2 = torch.exp(-0.5 * (((x1 - mu2[0]) / sigma2)**2 + ((x2_curved - mu2[1]) / sigma2)**2)) / (2 * torch.pi * sigma2**2)
+
+        # Weighted sum of components
+        return weight1 * gauss1 + weight2 * gauss2
+
+
+    def curved_gaussian_mixture_grad_log_p(self, x, mu1=torch.tensor([-2.0, -2.0]), mu2=torch.tensor([2.0, 2.0]), 
+                                        sigma1=1.0, sigma2=1.0, weight1=0.5, weight2=0.5, curve_strength=4.5):
+        if x.ndim == 1:
+            x = x.reshape(1, -1)
+        x1, x2 = x[..., 0], x[..., 1]
+
+        # Apply a curving transformation
+        x2_curved = x2 + curve_strength * torch.sin(x1)
+        dx2_dcurve = 1 + curve_strength * torch.cos(x1)
+
+        # Compute Gaussian components
+        gauss1 = torch.exp(-0.5 * (((x1 - mu1[0]) / sigma1)**2 + ((x2_curved - mu1[1]) / sigma1)**2)) / (2 * torch.pi * sigma1**2)
+        gauss2 = torch.exp(-0.5 * (((x1 - mu2[0]) / sigma2)**2 + ((x2_curved - mu2[1]) / sigma2)**2)) / (2 * torch.pi * sigma2**2)
+        total_density = weight1 * gauss1 + weight2 * gauss2
+        # Add stabilization to avoid division by zero
+        total_density = torch.clamp(total_density, min=1e-9)
+
+        # Gradients for each component
+        grad_x1_1 = -((x1 - mu1[0]) / sigma1**2) * gauss1
+        grad_x2_1 = -((x2_curved - mu1[1]) / sigma1**2) * dx2_dcurve * gauss1
+
+        grad_x1_2 = -((x1 - mu2[0]) / sigma2**2) * gauss2
+        grad_x2_2 = -((x2_curved - mu2[1]) / sigma2**2) * dx2_dcurve * gauss2
+
+        grad_x1 = (weight1 * grad_x1_1 + weight2 * grad_x1_2) / total_density
+        grad_x2 = (weight1 * grad_x2_1 + weight2 * grad_x2_2) / total_density
+
+        return torch.stack((grad_x1, grad_x2), dim=-1)
 
     def spirals_distribution(self, pos):
         x = pos.reshape(-1, 2)
@@ -106,14 +154,6 @@ class TargetDistribution:
         # Gradient is zero everywhere for a checkerboard pattern as it is piecewise constant
         return torch.zeros_like(x)
 
-import torch
-import matplotlib.pyplot as plt
-import numpy as np
-from matplotlib.animation import FuncAnimation
-from IPython.display import HTML
-import torchdiffeq
-from abc import ABC, abstractmethod
-
 
 class SamplingMethod(ABC):
     def __init__(self, particles, grad_log_p, target_distribution, t_final, bandwidth=0.5, counter=None):
@@ -128,97 +168,184 @@ class SamplingMethod(ABC):
     def run(self):
         pass
 
-
 class SVGDSampler(SamplingMethod):
-    def run(self, metrics_tracker):
-        # Implement SVGD logic here
+    def run(self, metrics_tracker, step_size=0.05):
         all_particles = []
-        step_size = 0.1
         t = torch.tensor(0.0, device=self.particles.device)
+        num_particles = self.particles.size(0)
 
         while t < self.t_final:
             if t + step_size > self.t_final:
                 step_size = self.t_final - t
 
-            metrics_tracker.track(self.particles, self.target_distribution, self.counter.get_flops(), t.item())
-            distances = torch.cdist(self.particles, self.particles) ** 2
-            self.counter.count_subtraction(self.particles.unsqueeze(1), self.particles.unsqueeze(0))
-            self.counter.count_exp(distances)
-            kernel_matrix = torch.exp(-distances / (2 * self.bandwidth**2))
-            self.counter.count_elementwise_div(kernel_matrix, 2 * self.bandwidth**2)
+            # Compute the kernel matrix (RBF kernel)
+            pairwise_distances = torch.cdist(self.particles, self.particles) ** 2
+            kernel_matrix = torch.exp(-pairwise_distances / (2 * self.bandwidth**2))
 
+            # Compute the gradient of the kernel with respect to particles
+            kernel_grad = -(self.particles.unsqueeze(1) - self.particles.unsqueeze(0)) * kernel_matrix.unsqueeze(-1) / (self.bandwidth**2)
+
+            # Compute the gradient of the log-probability for all particles
             grad_log_p_values = self.grad_log_p(self.particles)
-            self.counter.count_matmul(kernel_matrix, grad_log_p_values)
-            svgd_direction = kernel_matrix @ grad_log_p_values / len(self.particles)
-            self.counter.count_elementwise_div(svgd_direction, len(self.particles))
+            # alternatively, approximate the gradient of the log-probability using kernel gradients
+            # grad_log_p_values = kernel_grad.sum(dim=1) / num_particles
 
-            self.particles = self.particles + step_size * svgd_direction
-            self.counter.count_elementwise_mul(svgd_direction, step_size)
-            self.counter.count_addition(self.particles, svgd_direction)
+            # Compute the SVGD update direction
+            phi = (kernel_matrix @ grad_log_p_values) / num_particles + kernel_grad.sum(dim=0) / num_particles
 
-            t = t + step_size
+            # Update the particles
+            self.particles = self.particles + step_size * phi
+
+            t  = t + step_size
+
+            metrics_tracker.track(self.particles, self.target_distribution, self.counter.get_flops(), t.item())
             all_particles.append(self.particles.clone())
+
+            self.counter.count_addition(self.particles.unsqueeze(1), self.particles.unsqueeze(0))
+            self.counter.count_exp(kernel_matrix)
+            self.counter.count_matmul(kernel_matrix, grad_log_p_values)
+            self.counter.count_elementwise_mul(phi, step_size)
+            self.counter.count_addition(self.particles, phi)
 
         return all_particles
 
-
 class MRISampler(SamplingMethod):
-    def run(self, metrics_tracker):
-        # Implement multirate SVGD logic here
+    def run(self, metrics_tracker, step_size=0.01):
         all_particles = []
-        step_size = 0.1
         t = torch.tensor(0.0, device=self.particles.device)
 
         while t < self.t_final:
             if t + step_size > self.t_final:
                 step_size = self.t_final - t
 
-            distances = torch.cdist(self.particles, self.particles) ** 2
-            self.counter.count_subtraction(self.particles.unsqueeze(1), self.particles.unsqueeze(0))
-            self.counter.count_exp(distances)
-            kernel_matrix = torch.exp(-distances / (2 * self.bandwidth**2))
-            self.counter.count_elementwise_div(kernel_matrix, 2 * self.bandwidth**2)
+            kernel_matrix = compute_kernel_matrix(self.particles, self.bandwidth)
+            
+            self.counter.count_addition(self.particles.unsqueeze(1), self.particles.unsqueeze(0))
+            self.counter.count_exp(kernel_matrix)
+            self.counter.count_elementwise_mul(kernel_matrix, 2 * self.bandwidth**2)
 
             def f_fast(t, particles):
                 kernel_grad = -(particles.unsqueeze(1) - particles.unsqueeze(0)) * kernel_matrix.unsqueeze(-1) / (self.bandwidth**2)
-                return 1 * kernel_grad.sum(dim=0) / len(particles)
+                return kernel_grad.sum(dim=0) / len(particles)
 
             def f_slow(t, particles):
                 grad_log_p_values = self.grad_log_p(particles)
                 return kernel_matrix @ grad_log_p_values / len(particles)
 
+            step_ratio = 10
             ynext, yhat = mriGARKstep(self.particles, f_slow, f_fast, step_size)
             relative_error = torch.norm(ynext - yhat) / torch.clamp(torch.norm(ynext), min=1e-6)
 
-            if relative_error > 0.5:
-                step_size = 0.8 * step_size
+            if relative_error > 0.01:
+                step_size *= 0.8
                 continue
             else:
-                t = t + step_size
-                step_size = step_size * 1.2
+                t += step_size
+                step_size *= 1.2
                 self.particles = ynext.clone()
                 all_particles.append(ynext)
                 metrics_tracker.track(self.particles, self.target_distribution, self.counter.get_flops(), t.item())
 
         return all_particles
 
+class MRSampler(SamplingMethod):
+    def run(self, metrics_tracker, step_size=0.05):
+        all_particles = []
+        t = torch.tensor(0.0, device=self.particles.device)
+        num_particles = self.particles.size(0)
+        bandwidth = self.bandwidth
 
+        def update_repulsive_dynamics(t, particles):
+                
+                pairwise_distances = torch.cdist(particles, particles) ** 2
+                kernel_matrix = torch.exp(-pairwise_distances / (2 *bandwidth**2))
+                kernel_grad = -(particles.unsqueeze(1) - particles.unsqueeze(0)) * kernel_matrix.unsqueeze(-1) / (bandwidth**2)
+                update = kernel_grad.sum(dim=0) / num_particles
+
+                return particles + step_size * update
+            
+        def update_attractive_dynamics(t, particles):
+                pairwise_distances = torch.cdist(particles, particles) ** 2
+                kernel_matrix = torch.exp(-pairwise_distances / (2 * bandwidth**2))
+                grad_log_p_values = self.grad_log_p(particles)
+                update = kernel_matrix @ grad_log_p_values / num_particles
+                return particles + step_size * update
+
+        while t < self.t_final:
+            if t + step_size > self.t_final:
+                step_size = self.t_final - t
+            
+            self.particles = update_repulsive_dynamics(t, self.particles)
+
+            
+
+            for _ in range(10):
+                self.particles = update_attractive_dynamics(t, self.particles)
+                t = t + step_size
+
+            metrics_tracker.track(self.particles, self.target_distribution, self.counter.get_flops(), t.item())
+            all_particles.append(self.particles.clone())
+
+            # self.counter.count_addition(self.particles.unsqueeze(1), self.particles.unsqueeze(0))
+            # self.counter.count_exp(kernel_matrix)
+            # self.counter.count_matmul(kernel_matrix, grad_log_p_values)
+            # self.counter.count_elementwise_mul(ynext, step_size)
+            # self.counter.count_addition(self.particles, ynext)
+
+        return all_particles
+    
 def mriGARKstep(particles, f_slow, f_fast, step_size):
-    t = torch.tensor(0.0).to(particles.device)
+    t  = torch.tensor(0.0).to(particles.device)
     v1 = particles.clone() 
     fs = f_slow(0, particles)
     stage_ode = lambda t, v: 0.5 * f_fast(t, v) + 0.5 * fs
-    v2 = torchdiffeq.odeint(stage_ode, v1, torch.tensor([0, step_size], device=particles.device))[-1,:,:]
+    ode_options = {'min_step': 1e-3}
+
+    v2 = torchdiffeq.odeint(stage_ode, v1, torch.tensor([0, step_size], device=particles.device),
+                            rtol=1e-3, atol=1e-3,
+                            options=ode_options)[-1,:,:]
 
     fs2 = f_slow(0, v2)
     stage_ode = lambda t, v: 0.5 * f_fast(t, v) - 0.5 * fs + fs2
-    ynext = torchdiffeq.odeint(stage_ode, v2, torch.tensor([0, step_size], device=particles.device))[-1,:,:]
+    ynext = torchdiffeq.odeint(stage_ode, v2, torch.tensor([0, step_size], device=particles.device),
+                               rtol=1e-3, atol=1e-3,
+                               options=ode_options)[-1,:,:]
 
     v3 = v2
     stage_ode = lambda t, v: 0.5 * f_fast(t, v) + 0.5 * fs
-    yhat = torchdiffeq.odeint(stage_ode, v3, torch.tensor([0, step_size], device=particles.device))[-1,:,:]
+    yhat = torchdiffeq.odeint(stage_ode, v3, torch.tensor([0, step_size], device=particles.device),
+                              rtol=1e-3, atol=1e-3,
+                              options=ode_options)[-1,:,:]
     
     return ynext, yhat
+
+
+def mrStep(particles, f_slow, f_fast, step_size, step_ratio):
+
+    # Initialize time and particles
+    t = torch.tensor(0.0).to(particles.device)
+    ynext = particles.clone()
+
+    fbefore = f_slow(t, particles) + f_fast(t, particles)
+
+    
+    # Compute slow dynamics
+    fs = f_slow(t, particles)
+    
+    ynext += step_size * fs
+
+    # Perform step_ratio fast updates for one slow update
+    fast_step_size = step_size / step_ratio
+    for _ in range(step_ratio):
+        f_fast_eval = f_fast(t, ynext)
+        ynext += fast_step_size * (f_fast_eval)
+
+    f_after = f_slow(t + step_size, ynext) + f_fast(t + step_size, ynext)
+
+    # Set yhat to be the same as ynext
+    growth = torch.norm(f_after)/torch.norm(fbefore)
+
+    return ynext, growth
 
 
 class FlopCounter:
@@ -231,15 +358,13 @@ class FlopCounter:
         self.flops += 2 * m * n * p
 
     def count_addition(self, A, B):
-        self.flops += A.numel()
-
-    def count_subtraction(self, A, B):
-        self.flops += A.numel()
+        if A.shape != B.shape:
+            self.flops += (A.numel())**2
+        else:
+            self.flops += A.numel()
 
     def count_elementwise_mul(self, A, B):
-        self.flops += A.numel()
-
-    def count_elementwise_div(self, A, B):
+        # note: it is assumed that A and B have the same shape or B is a scalar
         self.flops += A.numel()
 
     def count_exp(self, A):
@@ -261,10 +386,10 @@ class SamplingExperiment:
     def add_method(self, method):
         self.methods.append(method)
 
-    def run_all(self):
+    def run_all(self, trackers):
         results = {}
-        for method in self.methods:
-            results[type(method).__name__] = method.run(metrics_tracker_svgd if isinstance(method, SVGDSampler) else metrics_tracker_mri)
+        for method, tracker in zip(self.methods, trackers):
+            results[type(method).__name__] = method.run(tracker)
         return results
 
 
@@ -295,6 +420,7 @@ class MetricsTracker:
 
     def mean_log_p(self, particles, target_distribution):
         log_p = target_distribution(particles.unsqueeze(0)).squeeze()
+        # this is in fact mean probability, not mean log probability, we will use semilogy to plot it
         return log_p.mean().item()
 
     def effective_sample_size(self, particles, target_distribution):
@@ -318,119 +444,3 @@ class MetricsTracker:
         num_samples = samples.size(0)
         spread = pairwise_distances.sum() / (num_samples * (num_samples - 1))
         return spread.item()
-
-
-# Configuration
-target = 'squiggly'  # Choose from 'gaussian', 'ring', 'banana', 'squiggly', 'checkerboard', 'spirals'
-device = torch.device("mps" if torch.backends.mps.is_available() 
-                      else "cuda" if torch.cuda.is_available() 
-                      else "cpu")
-device = torch.device('cpu')
-print(device)
-
-# Instantiate the target distribution
-target_dist = TargetDistribution(target, device)
-
-target_distribution = target_dist.target_distribution
-grad_log_p = target_dist.grad_log_p
-
-# Initialize particles
-num_particles = 100
-particles = (torch.rand(num_particles, 2) - 0.5) * 10
-particles = particles.to(device)
-t_final = 100.0
-
-# Instantiate flop counters
-flop_counter_svgd = FlopCounter()
-flop_counter_mri = FlopCounter()
-
-# Instantiate metrics tracker
-metrics_tracker_svgd = MetricsTracker()
-metrics_tracker_mri = MetricsTracker()
-
-# Set up the experiment
-experiment = SamplingExperiment(
-    target_distribution=target_distribution,
-    grad_log_p=grad_log_p,
-    particles=particles,
-    t_final=t_final,
-    bandwidth=0.5
-)
-
-# Add different sampling methods
-svgd_sampler = SVGDSampler(particles, grad_log_p, target_distribution, t_final, bandwidth=0.5, counter=flop_counter_svgd)
-mri_sampler = MRISampler(particles, grad_log_p, target_distribution, t_final, bandwidth=0.5, counter=flop_counter_mri)
-
-experiment.add_method(svgd_sampler)
-experiment.add_method(mri_sampler)
-
-# Run all methods
-results = experiment.run_all()
-
-
-# # Track metrics for each step
-# for method_name, particles_list in results.items():
-#     for i, particles in enumerate(particles_list):
-#         if method_name == 'SVGDSampler':
-#             metrics_tracker_svgd.track(particles, target_distribution, flop_counter_svgd.get_flops(), i)
-#         elif method_name == 'MRISampler':
-#             metrics_tracker_mri.track(particles, target_distribution, flop_counter_mri.get_flops(), i)
-
-# Plotting results
-fig = plt.figure(figsize=(16, 4))
-axes = [fig.add_subplot(1, 4, i + 1) for i in range(4)]
-
-for experiment_name, metrics_tracker in zip(['MRI', 'SVGD'], [metrics_tracker_mri, metrics_tracker_svgd]):
-    # Plot the quality metric (mean log-probability
-    axes[0].semilogy(metrics_tracker.history['time_history'], metrics_tracker.history['mlp_history'], label=experiment_name)
-    axes[0].set_xlabel('Time')
-    axes[0].set_ylabel('Mean Log-Probability')
-
-    # Plot the effective sample size over time
-    axes[1].plot(metrics_tracker.history['time_history'], metrics_tracker.history['ess_history'], label=experiment_name)
-    axes[1].set_xlabel('Time')
-    axes[1].set_ylabel('Effective Sample Size')
-
-    # Plot the KL divergence over time
-    axes[2].plot(metrics_tracker.history['time_history'], metrics_tracker.history['kl_history'], label=experiment_name)
-    axes[2].set_xlabel('Time')
-    axes[2].set_ylabel('KL Divergence')
-
-    # Plot the spread over time
-    axes[3].plot(metrics_tracker.history['time_history'], metrics_tracker.history['spread_history'], label=experiment_name)
-    axes[3].set_xlabel('Time')
-    axes[3].set_ylabel('Spread')
-
-# Turn on the legend for all subplots
-for ax in axes:
-    ax.legend()
-
-plt.show()
-
-# Create separate animations for each method
-for experiment_name, particles_list in results.items():
-    fig, ax = plt.subplots(figsize=(4, 4))
-
-    # Define the grid for the target distribution plot
-    x, y = torch.meshgrid(torch.linspace(-5, 5, 100), torch.linspace(-5, 5, 100))
-    pos = torch.stack((x, y), dim=-1).to(device)
-    target_density = target_distribution(pos).cpu().numpy()
-
-    # Plot the target distribution
-    ax.contourf(x.cpu().numpy(), y.cpu().numpy(), target_density, levels=30, cmap='viridis', alpha=0.6)
-
-    # Initialize the scatter plot for particles
-    scatter = ax.scatter([], [], color='red', s=10)
-
-    # Update function for animation
-    def update(frame):
-        scatter.set_offsets(particles_list[frame].cpu().numpy())
-        ax.set_title(f"{experiment_name} - Iteration {frame}")
-        return scatter,
-
-    # Create the animation
-    ani = FuncAnimation(fig, update, frames=len(particles_list), blit=True)
-
-    # Display the animation
-    HTML(ani.to_jshtml())
-    plt.show()
