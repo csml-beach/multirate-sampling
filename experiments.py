@@ -56,10 +56,10 @@ def animate_results(results, target_distribution, device):
         plt.close(fig)
 
 # Configuration
-t_final = 50.0
+t_final = 100.0
 animate = True
 plot = True
-target = 'swiss'
+target = 'squiggly'
 # device = torch.device("mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu")
 device = torch.device('cpu')
 print(device)

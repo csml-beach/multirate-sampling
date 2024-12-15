@@ -18,7 +18,7 @@ class TargetDistribution:
             'ring': (self.ring_distribution, self.ring_grad_log_p),
             'gaussian': (self.gaussian_distribution, self.gaussian_grad_log_p),
             'checkerboard': (self.checkerboard_distribution, self.checkerboard_grad_log_p),
-            'swiss': (self.curved_gaussian_mixture, self.curved_gaussian_mixture_grad_log_p)
+            'v^': (self.curved_gaussian_mixture, self.curved_gaussian_mixture_grad_log_p)
         }
 
         if target not in self.distributions:
@@ -255,33 +255,41 @@ class MRSampler(SamplingMethod):
         num_particles = self.particles.size(0)
         bandwidth = self.bandwidth
 
-        def update_repulsive_dynamics(t, particles):
+        def repulsive_dynamics(t, particles):
                 
                 pairwise_distances = torch.cdist(particles, particles) ** 2
                 kernel_matrix = torch.exp(-pairwise_distances / (2 *bandwidth**2))
                 kernel_grad = -(particles.unsqueeze(1) - particles.unsqueeze(0)) * kernel_matrix.unsqueeze(-1) / (bandwidth**2)
                 update = kernel_grad.sum(dim=0) / num_particles
 
-                return particles + step_size * update
+                return step_size * update
             
-        def update_attractive_dynamics(t, particles):
+        def attractive_dynamics(t, particles):
                 pairwise_distances = torch.cdist(particles, particles) ** 2
                 kernel_matrix = torch.exp(-pairwise_distances / (2 * bandwidth**2))
                 grad_log_p_values = self.grad_log_p(particles)
                 update = kernel_matrix @ grad_log_p_values / num_particles
-                return particles + step_size * update
+                return step_size * update
 
         while t < self.t_final:
             if t + step_size > self.t_final:
                 step_size = self.t_final - t
             
-            self.particles = update_repulsive_dynamics(t, self.particles)
+            repulsion = repulsive_dynamics(t, self.particles)
+            self.particles = self.particles + repulsion
 
-            
+            drift = attractive_dynamics(t, self.particles)
+            self.particles = self.particles+ drift
+            t = t + step_size
 
-            for _ in range(10):
-                self.particles = update_attractive_dynamics(t, self.particles)
-                t = t + step_size
+            # print('repulsion', repulsion.norm(), 'drift', drift.norm())
+            ratio =  repulsion.abs()/torch.min(drift.abs(), 1e-9*torch.ones_like(drift))
+            # mask  = ratio > 10
+            # print('mask', mask)
+            # self.particles[mask] = self.particles[mask] + 5*step_size * drift[mask]
+            ratio  = ratio.clamp(max=10, min=0.1)
+     
+            self.particles = self.particles + step_size * ratio*(drift)
 
             metrics_tracker.track(self.particles, self.target_distribution, self.counter.get_flops(), t.item())
             all_particles.append(self.particles.clone())
