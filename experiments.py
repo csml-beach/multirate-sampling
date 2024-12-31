@@ -103,10 +103,10 @@ if __name__ == "__main__":
     # Configuration
     t_final = 100.0
     animate = False
-    plot = False
+    plot = True
     terminal_plot = True
     target = "v^"
-    target = "banana"
+    target = "gaussian"
     # device = torch.device("mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu")
     device = torch.device("cpu")
     print(device)
