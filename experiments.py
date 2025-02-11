@@ -104,9 +104,10 @@ if __name__ == "__main__":
     t_final = 100.0
     animate = False
     plot = True
-    terminal_plot = True
+    terminal_plot = False
     target = "v^"
-    target = "gaussian"
+    # target = 'squiggly'
+    # target = "gaussian"
     # device = torch.device("mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu")
     device = torch.device("cpu")
     print(device)
@@ -120,10 +121,8 @@ if __name__ == "__main__":
 
     # Instantiate flop counters and metrics trackers
     flop_counter_svgd = FlopCounter()
-    flop_counter_mri  = FlopCounter()
     flop_count_mr     = FlopCounter()
     metrics_tracker_svgd = MetricsTracker()
-    metrics_tracker_mri  = MetricsTracker()
     metrics_tracker_mr   = MetricsTracker()
 
     # Set up the experiment
