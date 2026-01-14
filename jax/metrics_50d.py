@@ -1,4 +1,4 @@
-# metrics.py  — moment errors + ESS  (no KSD for now) -----------------------
+# metrics_50d.py  — moment errors + ESS  (no KSD for now) -------------------
 import jax.numpy as jnp
 import numpy as np
 from statsmodels.tsa.stattools import acf

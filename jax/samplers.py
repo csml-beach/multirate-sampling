@@ -5,7 +5,7 @@ from functools import partial
 
 # ───────────────────────────────────────────────────────────────────────────
 # RBF kernel + repulsion term
-def rbf_kernel_and_rep(z, min_bw=1e-3, max_bw=1e3):
+def rbf_kernel_and_rep(z, min_bw=1e-3, max_bw=1e3, bw_scale=1.0):
     diff  = z[:, None, :] - z[None, :, :]          # (N,N,D)
     dist2 = jnp.sum(diff**2, axis=-1)              # (N,N)
 
@@ -14,7 +14,7 @@ def rbf_kernel_and_rep(z, min_bw=1e-3, max_bw=1e3):
     dist2_nodiag = dist2 + jnp.eye(z.shape[0], dtype=z.dtype) * big
 
     median = jnp.median(dist2_nodiag)
-    bw     = jnp.clip(median, min_bw, max_bw)
+    bw     = jnp.clip(median * bw_scale, min_bw, max_bw)
     inv_h  = 0.5 / bw
 
     K   = jnp.exp(-dist2 * inv_h)
@@ -23,11 +23,11 @@ def rbf_kernel_and_rep(z, min_bw=1e-3, max_bw=1e3):
 
 # ───────────────────────────────────────────────────────────────────────────
 # 1) Vanilla Euler SVGD
-def make_svgd_step(logprob_fn, step_size):
+def make_svgd_step(logprob_fn, step_size, *, bw_scale=1.0):
     @jax.jit
     def step(z, _key):
         grads = jax.grad(lambda x: jnp.sum(logprob_fn(x)))(z)
-        K, rep = rbf_kernel_and_rep(z)
+        K, rep = rbf_kernel_and_rep(z, bw_scale=bw_scale)
         z = z + step_size * (K @ grads + rep)
         return z, {
             "grad_evals": jnp.array(1.0, dtype=z.dtype),
@@ -37,12 +37,12 @@ def make_svgd_step(logprob_fn, step_size):
 
 # ───────────────────────────────────────────────────────────────────────────
 # 2) Strang-split / multi-rate SVGD
-def make_strang_svgd_step(logprob_fn, step_size, M=4):
+def make_strang_svgd_step(logprob_fn, step_size, M=4, *, bw_scale=1.0):
     assert M % 2 == 0
     dt_R = step_size / M
 
     def repulsive(p, dt):
-        _, rep = rbf_kernel_and_rep(p)
+        _, rep = rbf_kernel_and_rep(p, bw_scale=bw_scale)
         return p + dt * rep
 
     @jax.jit
@@ -53,7 +53,7 @@ def make_strang_svgd_step(logprob_fn, step_size, M=4):
             z = repulsive(z, dt_R)
         # drift
         grads = jax.grad(lambda x: jnp.sum(logprob_fn(x)))(z)
-        K, _  = rbf_kernel_and_rep(z)
+        K, _  = rbf_kernel_and_rep(z, bw_scale=bw_scale)
         z = z + step_size * (K @ grads)
         # second half repulsive
         for _ in range(M // 2 - 1):
@@ -118,10 +118,11 @@ def make_multirate_svgd_step(
         L_inv=None,                 # whitening matrix  Σ^{-½}
         m=4,
         grad_clip=50.0,             # clip ∇log p
+        bw_scale=1.0,
         debug=False):
 
     def _kernel_rep(z):
-        K, rep = rbf_kernel_and_rep(z)          # robust RBF
+        K, rep = rbf_kernel_and_rep(z, bw_scale=bw_scale)          # robust RBF
         return K, rep
 
     def step(x, _key):
@@ -202,11 +203,12 @@ def make_adaptive_multirate_svgd_step(
         m_min=1,
         m_max=8,
         err_tol=1e-2,
+        bw_scale=1.0,
         grad_clip=50.0,
         debug=False):
 
     def _kernel_rep(z):
-        K, rep = rbf_kernel_and_rep(z)
+        K, rep = rbf_kernel_and_rep(z, bw_scale=bw_scale)
         return K, rep
 
     def _rms(x):
@@ -272,12 +274,7 @@ def make_adaptive_multirate_svgd_step(
                     rep_nonfinite_max = jnp.maximum(rep_nonfinite_max, drift_nf)
         else:
             def _use_estimator(_):
-                z_out = jax.lax.cond(
-                    m_used == 1,
-                    lambda _: z_full,
-                    lambda _: z_two,
-                    operand=None,
-                )
+                z_out = z_two
                 nf_out = jnp.maximum(
                     rep_nonfinite_max,
                     jnp.maximum(nf_full, jnp.maximum(nf_half, nf_two)),

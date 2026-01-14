@@ -3,12 +3,12 @@ import jax, jax.numpy as jnp, time, csv, os
 from collections import deque
 from tqdm import trange
 
-from target   import make_gaussian50
+from target_50d import make_gaussian50
 from samplers import (make_svgd_step, make_strang_svgd_step,
                       make_sgld_step, make_sghmc_step,
                       make_multirate_svgd_step,
                       make_adaptive_multirate_svgd_step)
-from metrics  import mu_error, cov_error, ess_1d, ksd_rbf, mean_log_prob
+from metrics_50d  import mu_error, cov_error, ess_1d, ksd_rbf, mean_log_prob
 
 
 # ------------- configuration ---------------------------------------------
@@ -20,6 +20,7 @@ DEBUG_STEPS = 5
 chain_window = 1000        # Sliding window size for single-chain metrics
 RUN_ONLY_ADAPTIVE = False   # Run only adaptive multirate for focused debugging
 USE_WHITENING = False      # Apply whitening for SVGD-family methods
+BW_SCALE = 0.5             # <1.0 strengthens repulsion (smaller bandwidth)
 
 # Learning rates for different methods
 lr_svgd  = 1e-3            # SVGD learning rate
@@ -37,9 +38,9 @@ score_fn = lambda x: jax.grad(lambda y: jnp.sum(logp(y)))(x)
 
 # ----------- initial positions -------------------------------------------
 # Starting point for single-chain methods (SGLD, SGHMC)
-x0_chain = 0.5 * jax.random.normal(key, (50,))
+x0_chain = jax.random.uniform(key, (50,), minval=-4.0, maxval=4.0)
 # Starting particles for ensemble methods (SVGD variants)
-init_particles = 0.5 * jax.random.normal(key, (N_particles, 50))
+init_particles = jax.random.uniform(key, (N_particles, 50), minval=-4.0, maxval=4.0)
 
 # ----------- build samplers ----------------------------------------------
 samplers = {}
@@ -52,7 +53,8 @@ samplers["multirate_svgd"] = (
         base_dt=lr_svgd,   # Match SVGD step size for fair comparison
         m=4,               # Fixed repulsion substeps (IMEX-style)
         debug=DEBUG_MULTIRATE,
-        L_inv=L_inv if USE_WHITENING else None)
+        L_inv=L_inv if USE_WHITENING else None,
+        bw_scale=BW_SCALE)
 )
 
 samplers["adaptive_multirate_svgd"] = (
@@ -63,17 +65,18 @@ samplers["adaptive_multirate_svgd"] = (
         m_min=1, m_max=16,
         err_tol=1e-2,
         debug=DEBUG_MULTIRATE,
-        L_inv=L_inv if USE_WHITENING else None)
+        L_inv=L_inv if USE_WHITENING else None,
+        bw_scale=BW_SCALE)
 )
 
 if not DEBUG_MULTIRATE:
     samplers["vanilla_svgd"] = (
         init_particles,
-        make_svgd_step(logp, lr_svgd)  # Standard SVGD with fixed step size
+        make_svgd_step(logp, lr_svgd, bw_scale=BW_SCALE)  # Standard SVGD with fixed step size
     )
     samplers["strang_svgd"] = (
         init_particles,
-        make_strang_svgd_step(logp, lr_svgd)  # Strang splitting for SVGD dynamics
+        make_strang_svgd_step(logp, lr_svgd, bw_scale=BW_SCALE)  # Strang splitting for SVGD dynamics
     )
 
     # Single-chain MCMC methods for comparison

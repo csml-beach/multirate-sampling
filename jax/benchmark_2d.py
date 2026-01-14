@@ -1,6 +1,7 @@
 # benchmark_2d.py ----------------------------------------------------------
 import jax
 import jax.numpy as jnp
+import numpy as np
 import time
 import csv
 import os
@@ -16,31 +17,66 @@ from samplers import (
     make_multirate_svgd_step,
     make_adaptive_multirate_svgd_step,
 )
-from metrics import cov_error, ess_1d, ksd_rbf, mean_log_prob
+from metrics_2d import cov_error, ess_1d, ksd_rbf, mean_log_prob
 
 
 # ------------- configuration ---------------------------------------------
 N_particles = 128
-n_iter = 10_000
-save_every = 100
-chain_window = 1000
+n_iter = 1_000
+save_every = 20
+chain_window = 100
 
-lr_svgd = 1e-3
-lr_sgld = 1e-4
-lr_sghmc = 1e-4
+lr_svgd = 1e-2
+lr_sgld = 1e-2
+lr_sghmc = 1e-2
+BW_SCALE = 0.1  # <1.0 strengthens repulsion (smaller bandwidth)
+ERR_TOL = 1e-2
 
-RUN_TARGETS = ["banana", "ring", "squiggly", "two_moons"]
+RUN_TARGETS = ["banana", "ring", "squiggly"]
 RUN_METHODS = None  # set to a list of method names to filter
 
 OUT_DIR = "metrics_2d"
 os.makedirs(OUT_DIR, exist_ok=True)
 
+GRID_L1_SIZE = 200
+
+
+def _build_grid_reference(logp_fn, bounds, grid_size):
+    xmin, xmax = bounds
+    edges = np.linspace(xmin, xmax, grid_size + 1)
+    centers = 0.5 * (edges[:-1] + edges[1:])
+    xx, yy = np.meshgrid(centers, centers, indexing="xy")
+    pts = np.stack([xx.ravel(), yy.ravel()], axis=1)
+    logp = np.asarray(logp_fn(jnp.asarray(pts)))
+    logp = logp - np.max(logp)
+    w = np.exp(logp)
+    w_sum = w.sum()
+    if w_sum == 0.0:
+        raise ValueError("Grid reference density has zero mass.")
+    ref = (w / w_sum).reshape(grid_size, grid_size)
+    return edges, ref
+
+
+def _grid_l1(samples, edges, ref):
+    samples_np = np.asarray(samples)
+    hist, _, _ = np.histogram2d(
+        samples_np[:, 0],
+        samples_np[:, 1],
+        bins=[edges, edges],
+    )
+    total = hist.sum()
+    if total == 0.0:
+        return float("nan")
+    q = hist / total
+    return float(np.sum(np.abs(q - ref)))
+
 
 def run_target(target_name, key):
-    logp, score_fn, mean_ref, cov_ref, _bounds = get_target(target_name)
+    logp, score_fn, mean_ref, cov_ref, bounds = get_target(target_name)
+    grid_edges, grid_ref = _build_grid_reference(logp, bounds, GRID_L1_SIZE)
 
-    init_particles = 0.5 * jax.random.normal(key, (N_particles, 2))
-    x0_chain = 0.5 * jax.random.normal(key, (2,))
+    init_particles = jax.random.uniform(key, (N_particles, 2), minval=-4.0, maxval=4.0)
+    x0_chain = jax.random.uniform(key, (2,), minval=-4.0, maxval=4.0)
 
     samplers = {}
     samplers["multirate_svgd"] = (
@@ -50,6 +86,7 @@ def run_target(target_name, key):
             base_dt=lr_svgd,
             m=4,
             L_inv=None,
+            bw_scale=BW_SCALE,
         ),
     )
 
@@ -60,19 +97,20 @@ def run_target(target_name, key):
             base_dt=lr_svgd,
             m_min=1,
             m_max=16,
-            err_tol=1e-2,
+            err_tol=ERR_TOL,
             L_inv=None,
+            bw_scale=BW_SCALE,
         ),
     )
 
     samplers["vanilla_svgd"] = (
         init_particles,
-        make_svgd_step(logp, lr_svgd),
+        make_svgd_step(logp, lr_svgd, bw_scale=BW_SCALE),
     )
 
     samplers["strang_svgd"] = (
         init_particles,
-        make_strang_svgd_step(logp, lr_svgd),
+        make_strang_svgd_step(logp, lr_svgd, bw_scale=BW_SCALE),
     )
 
     sgld_init_fn, sgld_step_fn = make_sgld_step(logp, lr_sgld)
@@ -100,8 +138,8 @@ def run_target(target_name, key):
                 "ess",
                 "ksd",
                 "mean_logp",
+                "grid_l1",
                 "nonfinite_frac",
-                "stiff_ratio",
                 "m_used",
             ]
         )
@@ -139,8 +177,8 @@ def run_target(target_name, key):
                     ess_val = ess_1d(samples[:, 0])
                     ksd_val = ksd_rbf(samples, score_fn)
                     mlp_val = mean_log_prob(samples, logp)
+                    grid_l1_val = _grid_l1(samples, grid_edges, grid_ref)
                     nonfinite_frac = float(info.get("nonfinite_frac", 0.0))
-                    stiff_ratio = float(info.get("stiff_ratio", 0.0))
                     m_used = float(info.get("m_used", 0.0))
 
                     writer.writerow(
@@ -156,8 +194,8 @@ def run_target(target_name, key):
                             ess_val,
                             ksd_val,
                             mlp_val,
+                            grid_l1_val,
                             nonfinite_frac,
-                            stiff_ratio,
                             m_used,
                         ]
                     )

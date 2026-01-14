@@ -1,28 +1,58 @@
 # Multirate Sampling (SVGD-focused)
 
 ## Purpose
-This repository explores multirate variants of particle-based sampling, with an initial focus on SVGD-style dynamics. The core idea is to split or reweight the repulsive (kernel) and attractive (log-density gradient) components of SVGD so they can be integrated on different time scales, with the goal of better stability and efficiency on stiff or anisotropic targets.
+This repository explores multirate variants of particle-based sampling, with an initial focus on SVGD-style dynamics. The core idea is to split or reweight the repulsive (kernel) and attractive (log-density gradient) components of SVGD so they can be integrated on different time scales, improving stability and efficiency on stiff or anisotropic targets.
 
-In practice, the codebase contains:
-- JAX experiments that benchmark SVGD variants (vanilla, Strang-split, and a multirate-ratio variant) against SGLD/SGHMC on a 50D Gaussian with a wide eigenvalue spectrum.
-- PyTorch experiments on 2D toy targets (banana, ring, squiggly, spiral, mixtures) with SVGD and multirate-inspired updates, including adaptive step control and flop-count tracking.
-- Prototype and exploratory scripts for MIS/MRI ideas, classic MCMC baselines (MALA/HMC/Gibbs), and visualization/animation assets.
+## What is here
+- JAX 50D benchmark for SVGD variants vs SGLD/SGHMC, with gradient and kernel eval accounting.
+- JAX 2D benchmark suite (banana, ring, squiggly, two_moons) with the same metrics as 50D.
+- PyTorch legacy experiments and exploratory scripts (see `mri_samplers.py`, `experiments.py`, `misc/`).
+- Diagnostics and design notes in `docs/ideas.md`.
 
-## Key JAX path (higher-dimensional benchmark)
-- `jax/samplers.py`: SVGD variants including Strang splitting and a multirate ratio boost (with optional whitening).
-- `jax/target.py`: constructs a random 50D Gaussian target and provides log-density and whitening matrix.
-- `jax/benchmark_gauss50.py`: runs benchmark loops and records mean/covariance error and ESS to `metrics_gauss50.csv`.
-- `jax/plot_gauss50.py`: generates plots in `figures/` from the benchmark CSV.
+## Key JAX files
+- `jax/samplers.py`: SVGD variants (vanilla, Strang, fixed multirate, adaptive error-controlled multirate) plus SGLD/SGHMC.
+- `jax/target_50d.py`: 50D Gaussian target with whitening matrix.
+- `jax/targets_2d.py`: 2D targets and cached reference mean/cov via grid integration.
+- `jax/metrics_50d.py`: mu error, cov error, ESS, KSD, mean log-prob (50D).
+- `jax/metrics_2d.py`: cov error, ESS, KSD, mean log-prob (2D).
 
-## Key PyTorch path (2D toy targets)
-- `mri_samplers.py`: target families, SVGD/MRI-style samplers, flop counter, and metric tracking.
-- `experiments.py`: runs and visualizes SVGD vs multirate-style samplers on selected 2D targets.
-- `bayes-lin-reg-sampler.py`: standalone SVGD demo on a Bayesian nonlinear regression toy problem.
+## 50D workflow
+- Run: `python jax/benchmark_gauss50.py`
+- Outputs: `metrics_50d/metrics_gauss50.csv`
+- Plot: `python jax/plot_gauss50.py`
+- Figures: `figures_50d/`
 
-## Supporting and exploratory material
-- `misc/`: prototype scripts for MIS/MRI ideas, SVGD variants, and MALA/HMC/Gibbs baselines.
-- `Notebooks/`: exploratory notebooks for MIS/SVGD variations and error-control experiments.
-- `animations/` and `figures/`: saved visualizations and animations from experiments.
+Notes:
+- Dual-axis plots show grad evals (left) and kernel evals (right).
+- ESS is shown as bars only.
+- Toggle `USE_WHITENING` in `jax/benchmark_gauss50.py` to enable whitening for SVGD-family methods.
+
+## 2D workflow
+- Run: `python jax/benchmark_2d.py`
+- Outputs: `metrics_2d/<target>.csv`
+- Plot: `python jax/plot_2d.py`
+- Figures: `figures_2d/<target>/`
+- Animate: `python jax/animate_2d.py --target banana --sampler multirate_svgd --out animations_2d/banana_multirate.gif`
+
+Notes:
+- `plot_2d.py` auto-discovers all CSVs in `metrics_2d/` and writes per-target folders.
+- `animate_2d.py` works for both particle methods and single-chain methods (one moving point).
+
+## How to extend or revise
+- Add a new 2D target:
+  1) Implement `logp` in `jax/targets_2d.py` and set bounds.
+  2) Add the target name to `RUN_TARGETS` in `jax/benchmark_2d.py`.
+  3) Re-run the benchmark and plot scripts.
+- Add a new sampler:
+  1) Implement in `jax/samplers.py`.
+  2) Return `grad_evals` and `kernel_evals` in the `info` dict for fair comparisons.
+  3) Register in `jax/benchmark_gauss50.py` and `jax/benchmark_2d.py`.
+- Add or edit metrics in `jax/metrics_50d.py` or `jax/metrics_2d.py` and wire them into the benchmarks.
+
+## Supporting material
+- `misc/`: prototypes, old scripts, and one-off experiments.
+- `Notebooks/`: exploratory notebooks.
+- `figures_2d/`, `figures_50d/`, `animations_2d/`: generated outputs.
 
 ## Current state
-The repository is experimental and research-oriented. The multirate SVGD ideas are under active exploration, with multiple implementations and diagnostics to compare stability, ESS, and error against standard baselines.
+The repository is research-oriented and experimental. The multirate SVGD designs are under active exploration, with multiple implementations and diagnostics to compare stability, ESS, and error against baselines.
