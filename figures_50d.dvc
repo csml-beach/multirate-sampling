@@ -1,0 +1,6 @@
+outs:
+- md5: ac84abc233bd02d4b9347733b81d07ed.dir
+  size: 233185
+  nfiles: 5
+  hash: md5
+  path: figures_50d

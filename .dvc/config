@@ -1,0 +1,4 @@
+[core]
+    remote = localbackup
+['remote "localbackup"']
+    url = /Users/arash/Documents/GitHub/multirate-sampling_dvc
