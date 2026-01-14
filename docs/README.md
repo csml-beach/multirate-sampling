@@ -5,7 +5,8 @@ This repository explores multirate variants of particle-based sampling, with an 
 
 ## What is here
 - JAX 50D benchmark for SVGD variants vs SGLD/SGHMC, with gradient and kernel eval accounting.
-- JAX 2D benchmark suite (banana, ring, squiggly, two_moons) with the same metrics as 50D.
+- JAX 2D benchmark suite (banana, ring, squiggly, two_moons) with comparable metrics plus grid-based L1.
+- Early stopping based on KSD to prevent late-run degradation (configurable in each benchmark).
 - PyTorch legacy experiments and exploratory scripts (see `mri_samplers.py`, `experiments.py`, `misc/`).
 - Diagnostics and design notes in `docs/ideas.md`.
 
@@ -26,6 +27,7 @@ Notes:
 - Dual-axis plots show grad evals (left) and kernel evals (right).
 - ESS is shown as bars only.
 - Toggle `USE_WHITENING` in `jax/benchmark_gauss50.py` to enable whitening for SVGD-family methods.
+- Early stopping uses KSD with a tolerance/patience guard (`EARLY_STOP*` settings).
 
 ## 2D workflow
 - Run: `python jax/benchmark_2d.py`
@@ -37,6 +39,7 @@ Notes:
 Notes:
 - `plot_2d.py` auto-discovers all CSVs in `metrics_2d/` and writes per-target folders.
 - `animate_2d.py` works for both particle methods and single-chain methods (one moving point).
+- Early stopping uses the same KSD logic as 50D (`EARLY_STOP*` settings).
 
 ## How to extend or revise
 - Add a new 2D target:
@@ -53,6 +56,7 @@ Notes:
 - `misc/`: prototypes, old scripts, and one-off experiments.
 - `Notebooks/`: exploratory notebooks.
 - `figures_2d/`, `figures_50d/`, `animations_2d/`: generated outputs.
+- `metrics_2d/`, `metrics_50d/`: benchmark CSVs (tracked with DVC in this repo).
 
 ## Current state
 The repository is research-oriented and experimental. The multirate SVGD designs are under active exploration, with multiple implementations and diagnostics to compare stability, ESS, and error against baselines.

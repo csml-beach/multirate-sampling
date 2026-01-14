@@ -1,5 +1,5 @@
 # benchmark_gauss50.py  ────────────────────────────────────────────────────
-import jax, jax.numpy as jnp, time, csv, os
+import jax, jax.numpy as jnp, time, csv, os, math
 from collections import deque
 from tqdm import trange
 
@@ -17,10 +17,14 @@ n_iter      = 1_000        # Total number of sampling iterations
 save_every  = 50           # Save metrics every N iterations
 DEBUG_MULTIRATE = False    # Set True to debug multirate for a few steps
 DEBUG_STEPS = 5
-chain_window = 1000        # Sliding window size for single-chain metrics
+chain_window = 100        # Sliding window size for single-chain metrics
 RUN_ONLY_ADAPTIVE = False   # Run only adaptive multirate for focused debugging
 USE_WHITENING = False      # Apply whitening for SVGD-family methods
 BW_SCALE = 0.5             # <1.0 strengthens repulsion (smaller bandwidth)
+EARLY_STOP = True          # Stop when KSD worsens persistently
+EARLY_STOP_TOL = 0.1      # Relative degradation allowed (5%)
+EARLY_STOP_PATIENCE = 5    # Number of bad checkpoints before stopping
+EARLY_STOP_MIN_CHECKS = 5  # Minimum checkpoints before applying early stop
 
 # Learning rates for different methods
 lr_svgd  = 1e-3            # SVGD learning rate
@@ -120,6 +124,9 @@ with open(out_csv, "w", newline="") as f:
         t0  = time.time()  # Start timing for this method
         grad_eval_counts[name] = 0.0
         kernel_eval_counts[name] = 0.0
+        best_ksd = None
+        bad_checks = 0
+        check_count = 0
         if name in {"sgld", "sghmc"}:
             chain_buffers[name] = deque(maxlen=chain_window)
         
@@ -160,6 +167,23 @@ with open(out_csv, "w", newline="") as f:
                     nonfinite_frac, stiff_ratio, m_used,
                 ])
                 f.flush()  # Ensure data is written immediately
+                if EARLY_STOP:
+                    check_count += 1
+                    if not math.isfinite(ksd_val):
+                        bad_checks += 1
+                    elif best_ksd is None or ksd_val < best_ksd:
+                        best_ksd = ksd_val
+                        bad_checks = 0
+                    elif check_count >= EARLY_STOP_MIN_CHECKS and ksd_val > best_ksd * (1.0 + EARLY_STOP_TOL):
+                        bad_checks += 1
+                    else:
+                        bad_checks = 0
+                    if check_count >= EARLY_STOP_MIN_CHECKS and bad_checks >= EARLY_STOP_PATIENCE:
+                        print(
+                            f"early stop: {name} at iter {it} "
+                            f"(ksd {ksd_val:.3g} > best {best_ksd:.3g})"
+                        )
+                        break
 
             if DEBUG_MULTIRATE and name == "multirate_svgd" and it >= DEBUG_STEPS:
                 break

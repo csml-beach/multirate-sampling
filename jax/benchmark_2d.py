@@ -5,6 +5,7 @@ import numpy as np
 import time
 import csv
 import os
+import math
 from collections import deque
 from tqdm import trange
 
@@ -31,6 +32,10 @@ lr_sgld = 1e-2
 lr_sghmc = 1e-2
 BW_SCALE = 0.1  # <1.0 strengthens repulsion (smaller bandwidth)
 ERR_TOL = 1e-2
+EARLY_STOP = True          # Stop when KSD worsens persistently
+EARLY_STOP_TOL = 0.1      # Relative degradation allowed (5%)
+EARLY_STOP_PATIENCE = 5    # Number of bad checkpoints before stopping
+EARLY_STOP_MIN_CHECKS = 5  # Minimum checkpoints before applying early stop
 
 RUN_TARGETS = ["banana", "ring", "squiggly"]
 RUN_METHODS = None  # set to a list of method names to filter
@@ -154,6 +159,9 @@ def run_target(target_name, key):
             t0 = time.time()
             grad_eval_counts[name] = 0.0
             kernel_eval_counts[name] = 0.0
+            best_ksd = None
+            bad_checks = 0
+            check_count = 0
 
             if name in {"sgld", "sghmc"}:
                 chain_buffers[name] = deque(maxlen=chain_window)
@@ -200,6 +208,23 @@ def run_target(target_name, key):
                         ]
                     )
                     f.flush()
+                    if EARLY_STOP:
+                        check_count += 1
+                        if not math.isfinite(ksd_val):
+                            bad_checks += 1
+                        elif best_ksd is None or ksd_val < best_ksd:
+                            best_ksd = ksd_val
+                            bad_checks = 0
+                        elif check_count >= EARLY_STOP_MIN_CHECKS and ksd_val > best_ksd * (1.0 + EARLY_STOP_TOL):
+                            bad_checks += 1
+                        else:
+                            bad_checks = 0
+                        if check_count >= EARLY_STOP_MIN_CHECKS and bad_checks >= EARLY_STOP_PATIENCE:
+                            print(
+                                f"early stop: {target_name} | {name} at iter {it} "
+                                f"(ksd {ksd_val:.3g} > best {best_ksd:.3g})"
+                            )
+                            break
 
 
 def main():
