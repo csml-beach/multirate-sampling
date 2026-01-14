@@ -1,6 +1,6 @@
 outs:
-- md5: bb027d04d9ea48446d6daa592f584a5f.dir
-  size: 9855877
-  nfiles: 8
+- md5: bdfc49841fe4a95f17a0138f590ac4d6.dir
+  size: 10600298
+  nfiles: 9
   hash: md5
   path: animations_2d
