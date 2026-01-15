@@ -153,6 +153,128 @@ _plot_dual_x("cov_err", r"$\Vert\hat\Sigma-\Sigma\Vert_F$", "cov_error_dual_axis
 if "ksd" in df.columns:
     _plot_dual_x("ksd", "KSD", "ksd_dual_axis.png", logy=True)
 
+# 3b) wall-time overview (stacked panels)
+def _plot_walltime_overview(metrics, ylabels, fname, logy_flags=None, smooth=True, window=7):
+    if "wall_s" not in df.columns:
+        return
+    nrows = len(metrics)
+    fig, axes = plt.subplots(nrows, 1, figsize=(10, 10), sharex=True)
+    if nrows == 1:
+        axes = [axes]
+    for idx, (metric, ylabel) in enumerate(zip(metrics, ylabels)):
+        ax = axes[idx]
+        for name, sub in df.groupby("method"):
+            x, y = sub["wall_s"].values, sub[metric].values
+            if smooth:
+                x, y = smooth_data(x, y, window)
+            ax.plot(
+                x,
+                y,
+                label=name,
+                linewidth=2,
+                linestyle=LINE_STYLES.get(name, "-"),
+                color=COLOR_MAP.get(name),
+            )
+        ax.set_xscale("log")
+        if logy_flags is None or logy_flags[idx]:
+            ax.set_yscale("log")
+        ax.set_ylabel(ylabel)
+    axes[-1].set_xlabel("Wall time (s)")
+
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(
+        handles,
+        labels,
+        loc="upper center",
+        bbox_to_anchor=(0.5, 1.02),
+        ncol=3,
+        frameon=False,
+    )
+    plt.tight_layout(rect=[0, 0, 1, 0.94])
+    fp = os.path.join(FIG_D, fname)
+    fig.savefig(fp, dpi=150, bbox_inches="tight")
+    print(f"saved → {fp}")
+
+_plot_walltime_overview(
+    ["mu_err", "cov_err", "ksd"],
+    [r"$\Vert\hat\mu\Vert_2$", r"$\Vert\hat\Sigma-\Sigma\Vert_F$", "KSD"],
+    "walltime_overview.png",
+    logy_flags=[True, True, True],
+)
+
+def _size_from_values(values, min_size=60, max_size=240):
+    v = np.asarray(values)
+    if v.size == 0:
+        return v
+    v_min = np.nanmin(v)
+    v_max = np.nanmax(v)
+    if not np.isfinite(v_min) or not np.isfinite(v_max) or v_max <= v_min:
+        return np.full_like(v, 120.0, dtype=float)
+    return np.interp(v, (v_min, v_max), (min_size, max_size))
+
+
+def _plot_mu_cov_final_panels(fname):
+    if "mu_err" not in df.columns or "cov_err" not in df.columns:
+        return
+    latest = df.sort_values("wall_s").groupby("method").tail(1).copy()
+    latest = latest[np.isfinite(latest["mu_err"]) & np.isfinite(latest["cov_err"])]
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5.5), sharex=True, sharey=True)
+
+    latest["size_ess"] = _size_from_values(latest["ess"].values)
+    for name, sub in latest.groupby("method"):
+        axes[0].scatter(
+            sub["mu_err"].values,
+            sub["cov_err"].values,
+            color=COLOR_MAP.get(name),
+            marker="o",
+            s=sub["size_ess"].values,
+            alpha=0.9,
+            label=name,
+            edgecolors="none",
+        )
+    axes[0].set_title("Final: size = ESS")
+
+    latest["size_wall"] = _size_from_values(latest["wall_s"].values)
+    for name, sub in latest.groupby("method"):
+        axes[1].scatter(
+            sub["mu_err"].values,
+            sub["cov_err"].values,
+            color=COLOR_MAP.get(name),
+            marker="o",
+            s=sub["size_wall"].values,
+            alpha=0.9,
+            label=name,
+            edgecolors="none",
+        )
+    axes[1].set_title("Final: size = wall time")
+
+    if np.all(latest["mu_err"].values > 0) and np.all(latest["cov_err"].values > 0):
+        for ax in axes:
+            ax.set_xscale("log")
+            ax.set_yscale("log")
+    for ax in axes:
+        ax.set_xlabel(r"$\Vert\hat\mu\Vert_2$")
+        ax.set_ylabel(r"$\Vert\hat\Sigma-\Sigma\Vert_F$")
+
+    handles, labels = axes[0].get_legend_handles_labels()
+    legend = fig.legend(
+        handles,
+        labels,
+        loc="lower center",
+        bbox_to_anchor=(0.5, -0.1),
+        ncol=3,
+        frameon=False,
+    )
+    for h in legend.legend_handles:
+        if hasattr(h, "set_sizes"):
+            h.set_sizes([60])
+    plt.tight_layout(rect=[0, 0.12, 1, 1])
+    fp = os.path.join(FIG_D, fname)
+    fig.savefig(fp, dpi=150, bbox_inches="tight")
+    print(f"saved → {fp}")
+
+_plot_mu_cov_final_panels("pareto_mu_cov_final.png")
+
 # 4) Final ESS comparison (use the last recorded point of each method)
 latest = df.sort_values("iter").groupby("method").tail(1)
 plt.figure(figsize=(9.5, 4.5))

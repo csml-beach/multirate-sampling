@@ -53,6 +53,77 @@ def smooth_data(x, y, window=7):
     return x, y_smooth
 
 
+def _size_from_values(values, min_size=60, max_size=240):
+    v = np.asarray(values)
+    if v.size == 0:
+        return v
+    v_min = np.nanmin(v)
+    v_max = np.nanmax(v)
+    if not np.isfinite(v_min) or not np.isfinite(v_max) or v_max <= v_min:
+        return np.full_like(v, 120.0, dtype=float)
+    return np.interp(v, (v_min, v_max), (min_size, max_size))
+
+
+def _plot_mu_cov_final_panels(df, out_path):
+    if "mu_err" not in df.columns or "cov_err" not in df.columns:
+        return
+    latest = df.sort_values("wall_s").groupby("method").tail(1).copy()
+    latest = latest[np.isfinite(latest["mu_err"]) & np.isfinite(latest["cov_err"])]
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5.5), sharex=True, sharey=True)
+
+    latest["size_ess"] = _size_from_values(latest["ess"].values)
+    for name, sub in latest.groupby("method"):
+        axes[0].scatter(
+            sub["mu_err"].values,
+            sub["cov_err"].values,
+            color=COLOR_MAP.get(name),
+            marker="o",
+            s=sub["size_ess"].values,
+            alpha=0.9,
+            label=name,
+            edgecolors="none",
+        )
+    axes[0].set_title("Final: size = ESS")
+
+    latest["size_wall"] = _size_from_values(latest["wall_s"].values)
+    for name, sub in latest.groupby("method"):
+        axes[1].scatter(
+            sub["mu_err"].values,
+            sub["cov_err"].values,
+            color=COLOR_MAP.get(name),
+            marker="o",
+            s=sub["size_wall"].values,
+            alpha=0.9,
+            label=name,
+            edgecolors="none",
+        )
+    axes[1].set_title("Final: size = wall time")
+
+    if np.all(latest["mu_err"].values > 0) and np.all(latest["cov_err"].values > 0):
+        for ax in axes:
+            ax.set_xscale("log")
+            ax.set_yscale("log")
+    for ax in axes:
+        ax.set_xlabel(r"$\Vert\hat\mu-\mu\Vert_2$")
+        ax.set_ylabel(r"$\Vert\hat\Sigma-\Sigma\Vert_F$")
+
+    handles, labels = axes[0].get_legend_handles_labels()
+    legend = fig.legend(
+        handles,
+        labels,
+        loc="lower center",
+        bbox_to_anchor=(0.5, -0.1),
+        ncol=3,
+        frameon=False,
+    )
+    for h in legend.legend_handles:
+        if hasattr(h, "set_sizes"):
+            h.set_sizes([60])
+    plt.tight_layout(rect=[0, 0.12, 1, 1])
+    fig.savefig(out_path, dpi=150, bbox_inches="tight")
+    print(f"saved → {out_path}")
+
+
 def _plot_dual_x(df, metric, ylabel, fname, logy=True, smooth=True, window=7):
     fig, axes = plt.subplots(1, 2, figsize=(12, 4), sharey=True)
 
@@ -144,6 +215,11 @@ def _plot_target(csv_path):
 
     if "mean_logp" in df.columns:
         _plot_dual_x(df, "mean_logp", "Mean log-prob", out_dir / _fname("mean_logp_dual_axis"), logy=False)
+
+    _plot_mu_cov_final_panels(
+        df,
+        out_dir / _fname("pareto_mu_cov_final"),
+    )
 
     latest = df.sort_values("iter").groupby("method").tail(1)
     plt.figure(figsize=(9.5, 4.5))
