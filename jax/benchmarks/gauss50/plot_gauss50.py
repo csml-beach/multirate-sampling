@@ -5,9 +5,15 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import os, textwrap
 import numpy as np
+import sys
+from pathlib import Path
 
-CSV   = os.path.join("metrics_50d", "metrics_gauss50.csv")
-FIG_D = "figures_50d"
+JAX_DIR = Path(__file__).resolve().parents[2]
+if str(JAX_DIR) not in sys.path:
+    sys.path.insert(0, str(JAX_DIR))
+
+CSV   = os.path.join("metrics", "50d", "metrics_gauss50.csv")
+FIG_D = os.path.join("figures", "50d")
 os.makedirs(FIG_D, exist_ok=True)
 
 df = pd.read_csv(CSV)
@@ -82,6 +88,7 @@ def _plot(metric, ylabel, fname, logy=True, smooth=True, window=7, use_kernel_ev
     fp = os.path.join(FIG_D, fname)
     plt.savefig(fp, dpi=150)
     print(f"saved → {fp}")
+    plt.close()
 
 def _plot_dual_x(metric, ylabel, fname, logy=True, smooth=True, window=7):
     fig, axes = plt.subplots(1, 2, figsize=(12, 4), sharey=True)
@@ -142,6 +149,7 @@ def _plot_dual_x(metric, ylabel, fname, logy=True, smooth=True, window=7):
     fp = os.path.join(FIG_D, fname)
     fig.savefig(fp, dpi=150, bbox_inches="tight")
     print(f"saved → {fp}")
+    plt.close(fig)
 
 # 1) mean-error curve (dual-axis)
 _plot_dual_x("mu_err", r"$\Vert\hat\mu\Vert_2$", "mu_error_dual_axis.png")
@@ -194,6 +202,7 @@ def _plot_walltime_overview(metrics, ylabels, fname, logy_flags=None, smooth=Tru
     fp = os.path.join(FIG_D, fname)
     fig.savefig(fp, dpi=150, bbox_inches="tight")
     print(f"saved → {fp}")
+    plt.close(fig)
 
 _plot_walltime_overview(
     ["mu_err", "cov_err", "ksd"],
@@ -272,6 +281,7 @@ def _plot_mu_cov_final_panels(fname):
     fp = os.path.join(FIG_D, fname)
     fig.savefig(fp, dpi=150, bbox_inches="tight")
     print(f"saved → {fp}")
+    plt.close(fig)
 
 _plot_mu_cov_final_panels("pareto_mu_cov_final.png")
 
@@ -285,6 +295,7 @@ plt.tight_layout()
 fp = os.path.join(FIG_D, "ess_bar.png")
 plt.savefig(fp, dpi=150)
 print(f"saved → {fp}")
+plt.close()
 
 # 5) ESS per gradient eval (final checkpoint)
 latest = latest.copy()
@@ -305,3 +316,4 @@ plt.tight_layout()
 fp = os.path.join(FIG_D, "ess_per_grad_bar.png")
 plt.savefig(fp, dpi=150)
 print(f"saved → {fp}")
+plt.close()

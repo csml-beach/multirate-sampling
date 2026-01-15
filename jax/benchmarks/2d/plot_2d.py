@@ -5,10 +5,15 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import sys
+
+JAX_DIR = Path(__file__).resolve().parents[2]
+if str(JAX_DIR) not in sys.path:
+    sys.path.insert(0, str(JAX_DIR))
 
 
-METRICS_DIR = Path("metrics_2d")
-FIG_D = Path("figures_2d")
+METRICS_DIR = Path("metrics") / "2d"
+FIG_D = Path("figures") / "2d"
 FIG_D.mkdir(parents=True, exist_ok=True)
 
 plot_methods = [
@@ -122,6 +127,7 @@ def _plot_mu_cov_final_panels(df, out_path):
     plt.tight_layout(rect=[0, 0.12, 1, 1])
     fig.savefig(out_path, dpi=150, bbox_inches="tight")
     print(f"saved → {out_path}")
+    plt.close(fig)
 
 
 def _plot_dual_x(df, metric, ylabel, fname, logy=True, smooth=True, window=7):
@@ -191,6 +197,7 @@ def _plot_dual_x(df, metric, ylabel, fname, logy=True, smooth=True, window=7):
     fp = Path(fname)
     fig.savefig(fp, dpi=150, bbox_inches="tight")
     print(f"saved → {fp}")
+    plt.close(fig)
 
 
 def _plot_target(csv_path):
@@ -229,6 +236,7 @@ def _plot_target(csv_path):
     fp = out_dir / _fname("ess_bar")
     plt.savefig(fp, dpi=150)
     print(f"saved → {fp}")
+    plt.close()
 
     latest = latest.copy()
     _grad_col = "grad_evals" if "grad_evals" in latest.columns else "iter"
@@ -247,6 +255,7 @@ def _plot_target(csv_path):
     fp = out_dir / _fname("ess_per_grad_bar")
     plt.savefig(fp, dpi=150)
     print(f"saved → {fp}")
+    plt.close()
 
 
 def main():

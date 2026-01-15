@@ -3,4 +3,4 @@ outs:
   size: 69281
   nfiles: 4
   hash: md5
-  path: metrics_2d
+  path: 2d

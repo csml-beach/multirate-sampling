@@ -1,5 +1,11 @@
 # benchmark_gauss50.py  ────────────────────────────────────────────────────
 import jax, jax.numpy as jnp, time, csv, os, math
+import sys
+from pathlib import Path
+
+JAX_DIR = Path(__file__).resolve().parents[2]
+if str(JAX_DIR) not in sys.path:
+    sys.path.insert(0, str(JAX_DIR))
 from collections import deque
 from tqdm import trange
 
@@ -31,8 +37,8 @@ lr_svgd  = 1e-3            # SVGD learning rate
 lr_sgld  = 1e-4            # SGLD learning rate (smaller for stability)
 lr_sghmc = 1e-4            # SGHMC learning rate
 
-out_csv = os.path.join("metrics_50d", "metrics_gauss50.csv")
-os.makedirs("metrics_50d", exist_ok=True)
+out_csv = os.path.join("metrics", "50d", "metrics_gauss50.csv")
+os.makedirs(os.path.dirname(out_csv), exist_ok=True)
 
 # ----------- target distribution -----------------------------------------
 key = jax.random.PRNGKey(0)

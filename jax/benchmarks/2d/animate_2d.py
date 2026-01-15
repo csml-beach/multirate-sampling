@@ -2,6 +2,7 @@
 import argparse
 import os
 from pathlib import Path
+import sys
 
 import jax
 import jax.numpy as jnp
@@ -9,6 +10,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 from matplotlib import animation
+
+JAX_DIR = Path(__file__).resolve().parents[2]
+if str(JAX_DIR) not in sys.path:
+    sys.path.insert(0, str(JAX_DIR))
 
 from targets_2d import get_target, list_targets
 from samplers import (
@@ -168,7 +173,7 @@ def main():
     parser.add_argument("--bw-scale", type=float, default=0.5, help="Kernel bandwidth scale (<1 strengthens repulsion).")
     parser.add_argument(
         "--out",
-        default="animations_2d/anim.gif",
+        default="animations/2d/anim.gif",
         help="Output GIF path.",
     )
     args = parser.parse_args()
@@ -177,7 +182,7 @@ def main():
     for target in targets:
         out_path = args.out
         if args.target == "all":
-            out_path = f"animations_2d/{target}/{args.sampler}.gif"
+            out_path = f"animations/2d/{target}/{args.sampler}.gif"
         run_animation(
             target=target,
             sampler=args.sampler,

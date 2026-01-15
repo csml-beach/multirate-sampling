@@ -3,4 +3,4 @@ outs:
   size: 10929
   nfiles: 1
   hash: md5
-  path: metrics_50d
+  path: 50d

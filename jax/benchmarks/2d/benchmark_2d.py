@@ -6,6 +6,12 @@ import time
 import csv
 import os
 import math
+import sys
+from pathlib import Path
+
+JAX_DIR = Path(__file__).resolve().parents[2]
+if str(JAX_DIR) not in sys.path:
+    sys.path.insert(0, str(JAX_DIR))
 from collections import deque
 from tqdm import trange
 
@@ -40,7 +46,7 @@ EARLY_STOP_MIN_CHECKS = 5  # Minimum checkpoints before applying early stop
 RUN_TARGETS = ["banana", "ring", "squiggly"]
 RUN_METHODS = None  # set to a list of method names to filter
 
-OUT_DIR = "metrics_2d"
+OUT_DIR = os.path.join("metrics", "2d")
 os.makedirs(OUT_DIR, exist_ok=True)
 
 GRID_L1_SIZE = 200
