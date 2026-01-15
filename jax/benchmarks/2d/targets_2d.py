@@ -48,6 +48,13 @@ def _two_moons_logp(x, r=2.0, sigma=0.2, shift=1.0, offset=-0.5, sigma_x=2.0):
     return jnp.logaddexp(l1, l2) + envelope
 
 
+def _funnel_logp(x, sigma_v=3.0):
+    x = _as_batch(x)
+    v = x[:, 0]
+    y = x[:, 1]
+    return -0.5 * (v**2) / (sigma_v**2) - 0.5 * (v + (y**2) / jnp.exp(v))
+
+
 _TARGETS = {
     "banana": {
         "logp": _banana_logp,
@@ -63,6 +70,10 @@ _TARGETS = {
     },
     "two_moons": {
         "logp": _two_moons_logp,
+        "bounds": (-6.0, 6.0),
+    },
+    "funnel": {
+        "logp": _funnel_logp,
         "bounds": (-6.0, 6.0),
     },
 }

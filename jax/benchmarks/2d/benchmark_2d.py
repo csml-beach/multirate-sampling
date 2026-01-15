@@ -43,7 +43,7 @@ EARLY_STOP_TOL = 0.1      # Relative degradation allowed (5%)
 EARLY_STOP_PATIENCE = 5    # Number of bad checkpoints before stopping
 EARLY_STOP_MIN_CHECKS = 5  # Minimum checkpoints before applying early stop
 
-RUN_TARGETS = ["banana", "ring", "squiggly"]
+RUN_TARGETS = ["banana", "ring", "squiggly", "two_moons", "funnel"]
 RUN_METHODS = None  # set to a list of method names to filter
 
 OUT_DIR = os.path.join("metrics", "2d")
@@ -226,9 +226,10 @@ def run_target(target_name, key):
                         else:
                             bad_checks = 0
                         if check_count >= EARLY_STOP_MIN_CHECKS and bad_checks >= EARLY_STOP_PATIENCE:
+                            best_str = f"{best_ksd:.3g}" if best_ksd is not None else "nan"
                             print(
                                 f"early stop: {target_name} | {name} at iter {it} "
-                                f"(ksd {ksd_val:.3g} > best {best_ksd:.3g})"
+                                f"(ksd {ksd_val:.3g} > best {best_str})"
                             )
                             break
 

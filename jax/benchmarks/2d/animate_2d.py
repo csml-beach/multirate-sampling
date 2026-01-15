@@ -153,7 +153,7 @@ def main():
     parser.add_argument(
         "--target",
         default="all",
-        help="Target name (banana/ring/squiggly/two_moons) or 'all'.",
+        help="Target name (banana/ring/squiggly/two_moons/funnel) or 'all'.",
     )
     parser.add_argument(
         "--sampler",

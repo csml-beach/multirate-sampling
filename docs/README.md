@@ -5,7 +5,7 @@ This repository explores multirate variants of particle-based sampling, with an 
 
 ## What is here
 - JAX 50D benchmark for SVGD variants vs SGLD/SGHMC, with gradient and kernel eval accounting.
-- JAX 2D benchmark suite (banana, ring, squiggly, two_moons) with comparable metrics plus grid-based L1.
+- JAX 2D benchmark suite (banana, ring, squiggly, two_moons, funnel) with comparable metrics plus grid-based L1.
 - Early stopping based on KSD to prevent late-run degradation (configurable in each benchmark).
 - PyTorch legacy experiments and exploratory scripts (see `mri_samplers.py`, `experiments.py`, `misc/`).
 - Diagnostics and design notes in `docs/ideas.md`.
