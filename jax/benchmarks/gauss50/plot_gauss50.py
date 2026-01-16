@@ -16,7 +16,7 @@ CSV   = os.path.join("metrics", "50d", "metrics_gauss50.csv")
 FIG_D = os.path.join("figures", "50d")
 os.makedirs(FIG_D, exist_ok=True)
 
-df = pd.read_csv(CSV)
+df_raw = pd.read_csv(CSV)
 
 # Always render to PNGs only (non-interactive).
 
@@ -29,7 +29,7 @@ plot_methods = [
     "sgld",
     "sghmc",
 ]
-df = df[df["method"].isin(plot_methods)]
+df_raw = df_raw[df_raw["method"].isin(plot_methods)]
 
 # Line styles by method family
 LINE_STYLES = {
@@ -44,10 +44,36 @@ LINE_STYLES = {
 palette = sns.color_palette("tab10", n_colors=len(plot_methods))
 COLOR_MAP = {m: c for m, c in zip(plot_methods, palette)}
 
-def _resolve_xaxis(use_kernel_evals):
-    if use_kernel_evals and "kernel_evals" in df.columns:
+
+def _prepare_line_df(df_in):
+    df_line = df_in.copy()
+    if "is_best" in df_line.columns:
+        df_line = df_line[df_line["is_best"] != 1]
+    if "seed" in df_line.columns:
+        df_line = df_line.groupby(["method", "iter"], as_index=False).mean(numeric_only=True)
+    return df_line
+
+
+df_line = _prepare_line_df(df_raw)
+
+
+def _latest_per_run(df_in):
+    if "seed" not in df_in.columns:
+        return df_in.sort_values("iter").groupby("method").tail(1).copy()
+    df_last = df_in.sort_values("iter").groupby(["method", "seed"]).tail(1)
+    if "is_best" in df_in.columns:
+        df_best = df_in[df_in["is_best"] == 1]
+        if not df_best.empty:
+            best_idx = df_best.set_index(["method", "seed"])
+            last_idx = df_last.set_index(["method", "seed"])
+            combined = best_idx.combine_first(last_idx)
+            return combined.reset_index()
+    return df_last.reset_index(drop=True)
+
+def _resolve_xaxis(df_in, use_kernel_evals):
+    if use_kernel_evals and "kernel_evals" in df_in.columns:
         return "kernel_evals", "Kernel evaluations"
-    if "grad_evals" in df.columns:
+    if "grad_evals" in df_in.columns:
         return "grad_evals", "Gradient evaluations"
     return "iter", "Iterations"
 
@@ -63,9 +89,9 @@ def smooth_data(x, y, window=7):
     return x, y_smooth
 
 def _plot(metric, ylabel, fname, logy=True, smooth=True, window=7, use_kernel_evals=False):
-    x_col, x_label = _resolve_xaxis(use_kernel_evals)
+    x_col, x_label = _resolve_xaxis(df_line, use_kernel_evals)
     plt.figure(figsize=(9, 4))
-    for name, sub in df.groupby("method"):
+    for name, sub in df_line.groupby("method"):
         x, y = sub[x_col].values, sub[metric].values
         if smooth:
             x, y = smooth_data(x, y, window)
@@ -93,8 +119,8 @@ def _plot(metric, ylabel, fname, logy=True, smooth=True, window=7, use_kernel_ev
 def _plot_dual_x(metric, ylabel, fname, logy=True, smooth=True, window=7):
     fig, axes = plt.subplots(1, 2, figsize=(12, 4), sharey=True)
 
-    x_col, x_label = _resolve_xaxis(False)
-    for name, sub in df.groupby("method"):
+    x_col, x_label = _resolve_xaxis(df_line, False)
+    for name, sub in df_line.groupby("method"):
         x, y = sub[x_col].values, sub[metric].values
         if smooth:
             x, y = smooth_data(x, y, window)
@@ -112,8 +138,8 @@ def _plot_dual_x(metric, ylabel, fname, logy=True, smooth=True, window=7):
     axes[0].set_xlabel(x_label)
     axes[0].set_ylabel(ylabel)
 
-    if "kernel_evals" in df.columns:
-        for name, sub in df.groupby("method"):
+    if "kernel_evals" in df_line.columns:
+        for name, sub in df_line.groupby("method"):
             sub = sub[sub["kernel_evals"] > 0]
             if sub.empty:
                 continue
@@ -158,12 +184,12 @@ _plot_dual_x("mu_err", r"$\Vert\hat\mu\Vert_2$", "mu_error_dual_axis.png")
 _plot_dual_x("cov_err", r"$\Vert\hat\Sigma-\Sigma\Vert_F$", "cov_error_dual_axis.png")
 
 # 3) KSD curve (if available, dual-axis)
-if "ksd" in df.columns:
+if "ksd" in df_line.columns:
     _plot_dual_x("ksd", "KSD", "ksd_dual_axis.png", logy=True)
 
 # 3b) wall-time overview (stacked panels)
 def _plot_walltime_overview(metrics, ylabels, fname, logy_flags=None, smooth=True, window=7):
-    if "wall_s" not in df.columns:
+    if "wall_s" not in df_line.columns:
         return
     nrows = len(metrics)
     fig, axes = plt.subplots(nrows, 1, figsize=(10, 10), sharex=True)
@@ -171,7 +197,7 @@ def _plot_walltime_overview(metrics, ylabels, fname, logy_flags=None, smooth=Tru
         axes = [axes]
     for idx, (metric, ylabel) in enumerate(zip(metrics, ylabels)):
         ax = axes[idx]
-        for name, sub in df.groupby("method"):
+        for name, sub in df_line.groupby("method"):
             x, y = sub["wall_s"].values, sub[metric].values
             if smooth:
                 x, y = smooth_data(x, y, window)
@@ -223,9 +249,9 @@ def _size_from_values(values, min_size=60, max_size=240):
 
 
 def _plot_mu_cov_final_panels(fname):
-    if "mu_err" not in df.columns or "cov_err" not in df.columns:
+    if "mu_err" not in df_raw.columns or "cov_err" not in df_raw.columns:
         return
-    latest = df.sort_values("wall_s").groupby("method").tail(1).copy()
+    latest = _latest_per_run(df_raw)
     latest = latest[np.isfinite(latest["mu_err"]) & np.isfinite(latest["cov_err"])]
     fig, axes = plt.subplots(1, 2, figsize=(12, 5.5), sharex=True, sharey=True)
 
@@ -285,8 +311,63 @@ def _plot_mu_cov_final_panels(fname):
 
 _plot_mu_cov_final_panels("pareto_mu_cov_final.png")
 
-# 4) Final ESS comparison (use the last recorded point of each method)
-latest = df.sort_values("iter").groupby("method").tail(1)
+def _plot_summary_panels(fname):
+    latest = _latest_per_run(df_raw)
+    if latest.empty:
+        return
+    metrics = [
+        ("mu_err", r"$\Vert\hat\mu\Vert_2$"),
+        ("cov_err", r"$\Vert\hat\Sigma-\Sigma\Vert_F$"),
+        ("ksd", "KSD"),
+        ("ess", "ESS"),
+    ]
+    fig, axes = plt.subplots(2, 3, figsize=(14, 8))
+    axes = axes.flatten()
+    methods = [m for m in plot_methods if m in latest["method"].unique()]
+    x = np.arange(len(methods))
+
+    for idx, (metric, ylabel) in enumerate(metrics):
+        ax = axes[idx]
+        if metric not in latest.columns:
+            ax.axis("off")
+            continue
+        means = []
+        stds = []
+        for m in methods:
+            vals = latest.loc[latest["method"] == m, metric].to_numpy()
+            means.append(np.nanmean(vals))
+            stds.append(np.nanstd(vals))
+        ax.errorbar(
+            x,
+            means,
+            yerr=stds,
+            fmt="o",
+            color="black",
+            ecolor="black",
+            elinewidth=1.2,
+            capsize=4,
+        )
+        for j, m in enumerate(methods):
+            ax.scatter(x[j], means[j], color=COLOR_MAP.get(m), s=60, zorder=3)
+        ax.set_xticks(x)
+        ax.set_xticklabels(methods, rotation=30, ha="right")
+        ax.set_ylabel(ylabel)
+        if metric in {"mu_err", "cov_err", "ksd"} and np.all(np.array(means) > 0):
+            ax.set_yscale("log")
+
+    for ax in axes[len(metrics):]:
+        ax.axis("off")
+
+    plt.tight_layout()
+    fp = os.path.join(FIG_D, fname)
+    fig.savefig(fp, dpi=150, bbox_inches="tight")
+    print(f"saved → {fp}")
+    plt.close(fig)
+
+_plot_summary_panels("summary_metric_panels.png")
+
+# 4) Final ESS comparison (use the best checkpoint per method/seed)
+latest = _latest_per_run(df_raw)
 plt.figure(figsize=(9.5, 4.5))
 sns.barplot(data=latest, x="method", y="ess", hue="method", palette="Set2", legend=False)
 plt.ylabel("ESS (chain dim-0)")
