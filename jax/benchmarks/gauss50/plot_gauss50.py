@@ -321,7 +321,7 @@ def _plot_summary_panels(fname):
         ("ksd", "KSD"),
         ("ess", "ESS"),
     ]
-    fig, axes = plt.subplots(2, 3, figsize=(14, 8))
+    fig, axes = plt.subplots(2, 2, figsize=(12.5, 7.5))
     axes = axes.flatten()
     methods = [m for m in plot_methods if m in latest["method"].unique()]
     x = np.arange(len(methods))
@@ -354,9 +354,6 @@ def _plot_summary_panels(fname):
         ax.set_ylabel(ylabel)
         if metric in {"mu_err", "cov_err", "ksd"} and np.all(np.array(means) > 0):
             ax.set_yscale("log")
-
-    for ax in axes[len(metrics):]:
-        ax.axis("off")
 
     plt.tight_layout()
     fp = os.path.join(FIG_D, fname)

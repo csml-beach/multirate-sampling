@@ -1,6 +1,6 @@
 outs:
-- md5: 720c956af4fc85bae2c3a1e2d46aa2dd.dir
-  size: 10584485
-  nfiles: 9
+- md5: a5f1ee40c83fbb3b696066e086f599cb.dir
+  size: 15604035
+  nfiles: 15
   hash: md5
   path: animations

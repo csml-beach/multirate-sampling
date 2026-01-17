@@ -7,6 +7,7 @@ This repository explores multirate variants of particle-based sampling, with an 
 - JAX 50D benchmark for SVGD variants vs SGLD/SGHMC, with gradient and kernel eval accounting.
 - JAX 2D benchmark suite (banana, ring, squiggly, two_moons, funnel) with comparable metrics plus grid-based L1.
 - JAX UCI logistic regression benchmark (breast_cancer, ionosphere, spambase, a5a) with accuracy/NLL/ECE/ESS/KSD metrics.
+- JAX 2D mixture benchmark (mix8) with mode coverage/entropy + KSD and grid L1.
 - Early stopping based on KSD to prevent late-run degradation (configurable in each benchmark).
 - PyTorch legacy experiments and exploratory scripts (see `mri_samplers.py`, `experiments.py`, `misc/`).
 - Diagnostics and design notes in `docs/ideas.md`.
@@ -20,6 +21,7 @@ This repository explores multirate variants of particle-based sampling, with an 
 - `jax/benchmarks/uci/benchmark_logreg.py`: UCI logistic regression benchmark (multi-dataset, early stop, seed ablation).
 - `jax/benchmarks/uci/datasets.py`: dataset loaders (WDBC, ionosphere, spambase, a5a).
 - `jax/benchmarks/uci/metrics_uci.py`: accuracy, NLL, ECE, ESS, KSD, mean log-prob (UCI).
+- `jax/benchmarks/mixture2d/`: mixture benchmark (targets, metrics, plots, animations).
 
 ## 50D workflow
 - Run: `python jax/benchmarks/gauss50/benchmark_gauss50.py`
@@ -57,6 +59,17 @@ Notes:
 - Metrics are computed on the test split; the dataset seed controls the train/test split.
 - Summary plots use mean ± std across seeds and include a 2x2 panel (NLL, ECE, Accuracy, ESS).
 - A speed-vs-quality scatter shows final NLL/ECE vs wall time with error bars.
+
+## Mixture2D workflow
+- Run: `python jax/benchmarks/mixture2d/benchmark_mixture2d.py`
+- Outputs: `metrics/mixture2d/mix8.csv`
+- Plot: `python jax/benchmarks/mixture2d/plot_mixture2d.py`
+- Figures: `figures/mixture2d/mix8/`
+- Animate all methods: `python jax/benchmarks/mixture2d/animate_mixture2d.py --target mix8 --all-methods`
+
+Notes:
+- Metrics include mode coverage, mode entropy, min mass per mode, KSD, and grid L1.
+- Benchmark uses KSD-based early stopping with a restore-best row (`is_best=1`).
 
 ## How to extend or revise
 - Add a new 2D target:
