@@ -6,6 +6,15 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+plt.rcParams.update(
+    {
+        "text.usetex": True,
+        "font.family": "serif",
+        "font.serif": ["Computer Modern Roman"],
+        "font.size": 20,
+    }
+)
+
 
 METRICS_DIR = Path("metrics") / "uci"
 FIG_D = Path("figures") / "uci"
@@ -20,6 +29,15 @@ plot_methods = [
     "sghmc",
 ]
 
+METHOD_LABELS = {
+    "adaptive_multirate_svgd": "Adapt-MR-SVGD",
+    "multirate_svgd": "MR-SVGD",
+    "vanilla_svgd": "SVGD",
+    "strang_svgd": "Strang-SVGD",
+    "sgld": "SGLD",
+    "sghmc": "SGHMC",
+}
+
 LINE_STYLES = {
     "sgld": "--",
     "sghmc": "--",
@@ -31,6 +49,10 @@ LINE_STYLES = {
 
 palette = sns.color_palette("tab10", n_colors=len(plot_methods))
 COLOR_MAP = {m: c for m, c in zip(plot_methods, palette)}
+
+
+def _label(method):
+    return METHOD_LABELS.get(method, method)
 
 
 def _load_datasets():
@@ -93,7 +115,7 @@ def _plot_dual_x(df, metric, ylabel, fname, logy=False, smooth=True, window=7):
         axes[0].plot(
             x,
             y,
-            label=name,
+            label=_label(name),
             linewidth=2,
             linestyle=LINE_STYLES.get(name, "-"),
             color=COLOR_MAP.get(name),
@@ -119,7 +141,7 @@ def _plot_dual_x(df, metric, ylabel, fname, logy=False, smooth=True, window=7):
             axes[1].plot(
                 x,
                 y,
-                label=name,
+                label=_label(name),
                 linewidth=2,
                 linestyle=LINE_STYLES.get(name, "-"),
                 color=COLOR_MAP.get(name),
@@ -149,7 +171,17 @@ def _plot_dual_x(df, metric, ylabel, fname, logy=False, smooth=True, window=7):
 
 def _plot_bars(latest, metric, ylabel, fname):
     plt.figure(figsize=(9.5, 4.5))
-    sns.barplot(data=latest, x="method", y=metric, hue="method", palette="Set2", legend=False)
+    ax = sns.barplot(
+        data=latest,
+        x="method",
+        y=metric,
+        hue="method",
+        palette="Set2",
+        legend=False,
+        order=plot_methods,
+    )
+    ax.set_xticklabels([_label(m) for m in plot_methods], rotation=30, ha="right")
+    ax.set_xlabel("")
     plt.ylabel(ylabel)
     plt.tight_layout()
     plt.savefig(fname, dpi=150)
@@ -161,7 +193,7 @@ def _summarize_latest(latest):
     metrics = ["acc", "nll", "ece"]
     rows = []
     for name, sub in latest.groupby("method"):
-        row = {"method": name, "n_runs": int(sub.shape[0])}
+        row = {"method": _label(name), "n_runs": int(sub.shape[0])}
         for metric in metrics:
             vals = sub[metric].to_numpy()
             row[f"{metric}_mean"] = float(np.nanmean(vals))
@@ -237,7 +269,7 @@ def _plot_metric_means_panels(latest, fname):
                 zorder=3,
             )
         ax.set_xticks(x)
-        ax.set_xticklabels(methods, rotation=30, ha="right")
+        ax.set_xticklabels([_label(m) for m in methods], rotation=30, ha="right")
         ax.set_ylabel(ylabel)
     plt.tight_layout()
     fig.savefig(fname, dpi=150, bbox_inches="tight")
@@ -274,7 +306,7 @@ def _plot_speed_accuracy_scatter(latest, fname):
                 elinewidth=1.2,
                 capsize=4,
                 alpha=0.9,
-                label=m,
+                label=_label(m),
             )
         ax.set_xlabel("Wall time (s)")
         ax.set_ylabel(ylabel)
@@ -327,7 +359,7 @@ def _plot_nll_ece_final_panels(df, fname):
                 marker="o",
                 s=med_size * 1.6,
                 alpha=0.95,
-                label=name,
+                label=_label(name),
                 edgecolors="black",
                 linewidths=0.8,
             )
@@ -339,7 +371,7 @@ def _plot_nll_ece_final_panels(df, fname):
                 marker="o",
                 s=size_vals,
                 alpha=0.9,
-                label=name,
+                label=_label(name),
                 edgecolors="none",
             )
     axes[0].set_title("Final (runs): size = wall time" if multi_runs else "Final: size = wall time")
@@ -370,7 +402,7 @@ def _plot_nll_ece_final_panels(df, fname):
                     marker="o",
                     s=med_size * 1.6,
                     alpha=0.95,
-                    label=name,
+                    label=_label(name),
                     edgecolors="black",
                     linewidths=0.8,
                 )
@@ -382,7 +414,7 @@ def _plot_nll_ece_final_panels(df, fname):
                     marker="o",
                     s=size_vals,
                     alpha=0.9,
-                    label=name,
+                    label=_label(name),
                     edgecolors="none",
                 )
         axes[1].set_title("Final (runs): size = ESS" if multi_runs else "Final: size = ESS")

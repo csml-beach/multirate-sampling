@@ -11,6 +11,15 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 from matplotlib import animation
 
+plt.rcParams.update(
+    {
+        "text.usetex": True,
+        "font.family": "serif",
+        "font.serif": ["Computer Modern Roman"],
+        "font.size": 20,
+    }
+)
+
 JAX_DIR = Path(__file__).resolve().parents[2]
 if str(JAX_DIR) not in sys.path:
     sys.path.insert(0, str(JAX_DIR))

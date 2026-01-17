@@ -5,6 +5,15 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+plt.rcParams.update(
+    {
+        "text.usetex": True,
+        "font.family": "serif",
+        "font.serif": ["Computer Modern Roman"],
+        "font.size": 20,
+    }
+)
+
 
 METRICS_DIR = Path("metrics") / "bnn"
 FIG_D = Path("figures") / "bnn"
@@ -19,8 +28,21 @@ plot_methods = [
     "sghmc",
 ]
 
+METHOD_LABELS = {
+    "adaptive_multirate_svgd": "Adapt-MR-SVGD",
+    "multirate_svgd": "MR-SVGD",
+    "vanilla_svgd": "SVGD",
+    "strang_svgd": "Strang-SVGD",
+    "sgld": "SGLD",
+    "sghmc": "SGHMC",
+}
+
 palette = sns.color_palette("tab10", n_colors=len(plot_methods))
 COLOR_MAP = {m: c for m, c in zip(plot_methods, palette)}
+
+
+def _label(method):
+    return METHOD_LABELS.get(method, method)
 
 
 def _load_datasets():
@@ -44,7 +66,17 @@ def _latest_per_run(df):
 
 def _plot_bars(latest, metric, ylabel, fname):
     plt.figure(figsize=(9.5, 4.5))
-    sns.barplot(data=latest, x="method", y=metric, hue="method", palette="Set2", legend=False)
+    ax = sns.barplot(
+        data=latest,
+        x="method",
+        y=metric,
+        hue="method",
+        palette="Set2",
+        legend=False,
+        order=plot_methods,
+    )
+    ax.set_xticklabels([_label(m) for m in plot_methods], rotation=30, ha="right")
+    ax.set_xlabel("")
     plt.ylabel(ylabel)
     plt.tight_layout()
     plt.savefig(fname, dpi=150)
@@ -56,7 +88,7 @@ def _summarize_latest(latest):
     metrics = ["acc", "nll", "ece", "ess"]
     rows = []
     for name, sub in latest.groupby("method"):
-        row = {"method": name, "n_runs": int(sub.shape[0])}
+        row = {"method": _label(name), "n_runs": int(sub.shape[0])}
         for metric in metrics:
             if metric not in sub.columns:
                 continue
@@ -126,7 +158,7 @@ def _plot_metric_means_panels(latest, fname):
         for idx, m in enumerate(methods):
             ax.scatter(x[idx], means[idx], color=COLOR_MAP.get(m), s=60, zorder=3)
         ax.set_xticks(x)
-        ax.set_xticklabels(methods, rotation=30, ha="right")
+        ax.set_xticklabels([_label(m) for m in methods], rotation=30, ha="right")
         ax.set_ylabel(ylabel)
     plt.tight_layout()
     fig.savefig(fname, dpi=150, bbox_inches="tight")
@@ -163,7 +195,7 @@ def _plot_speed_accuracy_scatter(latest, fname):
                 elinewidth=1.2,
                 capsize=4,
                 alpha=0.9,
-                label=m,
+                label=_label(m),
             )
         ax.set_xlabel("Wall time (s)")
         ax.set_ylabel(ylabel)

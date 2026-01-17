@@ -7,6 +7,15 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import sys
 
+plt.rcParams.update(
+    {
+        "text.usetex": True,
+        "font.family": "serif",
+        "font.serif": ["Computer Modern Roman"],
+        "font.size": 20,
+    }
+)
+
 JAX_DIR = Path(__file__).resolve().parents[2]
 if str(JAX_DIR) not in sys.path:
     sys.path.insert(0, str(JAX_DIR))
@@ -24,6 +33,15 @@ plot_methods = [
     "sgld",
     "sghmc",
 ]
+
+METHOD_LABELS = {
+    "adaptive_multirate_svgd": "Adapt-MR-SVGD",
+    "multirate_svgd": "MR-SVGD",
+    "vanilla_svgd": "SVGD",
+    "strang_svgd": "Strang-SVGD",
+    "sgld": "SGLD",
+    "sghmc": "SGHMC",
+}
 def _load_targets():
     if not METRICS_DIR.exists():
         raise FileNotFoundError(f"Missing metrics directory: {METRICS_DIR}")
@@ -40,6 +58,10 @@ LINE_STYLES = {
 
 palette = sns.color_palette("tab10", n_colors=len(plot_methods))
 COLOR_MAP = {m: c for m, c in zip(plot_methods, palette)}
+
+
+def _label(method):
+    return METHOD_LABELS.get(method, method)
 
 
 def _resolve_xaxis(df, use_kernel_evals):
@@ -85,7 +107,7 @@ def _plot_mu_cov_final_panels(df, out_path):
             marker="o",
             s=sub["size_ess"].values,
             alpha=0.9,
-            label=name,
+            label=_label(name),
             edgecolors="none",
         )
     axes[0].set_title("Final: size = ESS")
@@ -99,7 +121,7 @@ def _plot_mu_cov_final_panels(df, out_path):
             marker="o",
             s=sub["size_wall"].values,
             alpha=0.9,
-            label=name,
+            label=_label(name),
             edgecolors="none",
         )
     axes[1].set_title("Final: size = wall time")
@@ -145,7 +167,7 @@ def _plot_dual_x(df, metric, ylabel, fname, logy=True, smooth=True, window=7):
         axes[0].plot(
             x,
             y,
-            label=name,
+            label=_label(name),
             linewidth=2,
             linestyle=LINE_STYLES.get(name, "-"),
             color=COLOR_MAP.get(name),
@@ -171,7 +193,7 @@ def _plot_dual_x(df, metric, ylabel, fname, logy=True, smooth=True, window=7):
             axes[1].plot(
                 x,
                 y,
-                label=name,
+                label=_label(name),
                 linewidth=2,
                 linestyle=LINE_STYLES.get(name, "-"),
                 color=COLOR_MAP.get(name),
@@ -230,7 +252,17 @@ def _plot_target(csv_path):
 
     latest = df.sort_values("iter").groupby("method").tail(1)
     plt.figure(figsize=(9.5, 4.5))
-    sns.barplot(data=latest, x="method", y="ess", hue="method", palette="Set2", legend=False)
+    ax = sns.barplot(
+        data=latest,
+        x="method",
+        y="ess",
+        hue="method",
+        palette="Set2",
+        legend=False,
+        order=plot_methods,
+    )
+    ax.set_xticklabels([_label(m) for m in plot_methods], rotation=30, ha="right")
+    ax.set_xlabel("")
     plt.ylabel("ESS (chain dim-0)")
     plt.tight_layout()
     fp = out_dir / _fname("ess_bar")
@@ -242,14 +274,17 @@ def _plot_target(csv_path):
     _grad_col = "grad_evals" if "grad_evals" in latest.columns else "iter"
     latest["ess_per_grad"] = latest["ess"] / latest[_grad_col].replace(0, np.nan)
     plt.figure(figsize=(9.5, 4.5))
-    sns.barplot(
+    ax = sns.barplot(
         data=latest,
         x="method",
         y="ess_per_grad",
         hue="method",
         palette="Set2",
         legend=False,
+        order=plot_methods,
     )
+    ax.set_xticklabels([_label(m) for m in plot_methods], rotation=30, ha="right")
+    ax.set_xlabel("")
     plt.ylabel("ESS / grad eval")
     plt.tight_layout()
     fp = out_dir / _fname("ess_per_grad_bar")

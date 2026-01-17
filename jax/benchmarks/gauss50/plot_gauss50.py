@@ -8,6 +8,15 @@ import numpy as np
 import sys
 from pathlib import Path
 
+matplotlib.rcParams.update(
+    {
+        "text.usetex": True,
+        "font.family": "serif",
+        "font.serif": ["Computer Modern Roman"],
+        "font.size": 20,
+    }
+)
+
 JAX_DIR = Path(__file__).resolve().parents[2]
 if str(JAX_DIR) not in sys.path:
     sys.path.insert(0, str(JAX_DIR))
@@ -31,6 +40,15 @@ plot_methods = [
 ]
 df_raw = df_raw[df_raw["method"].isin(plot_methods)]
 
+METHOD_LABELS = {
+    "adaptive_multirate_svgd": "Adapt-MR-SVGD",
+    "multirate_svgd": "MR-SVGD",
+    "vanilla_svgd": "SVGD",
+    "strang_svgd": "Strang-SVGD",
+    "sgld": "SGLD",
+    "sghmc": "SGHMC",
+}
+
 # Line styles by method family
 LINE_STYLES = {
     "sgld": "--",
@@ -43,6 +61,10 @@ LINE_STYLES = {
 
 palette = sns.color_palette("tab10", n_colors=len(plot_methods))
 COLOR_MAP = {m: c for m, c in zip(plot_methods, palette)}
+
+
+def _label(method):
+    return METHOD_LABELS.get(method, method)
 
 
 def _prepare_line_df(df_in):
@@ -97,7 +119,7 @@ def _plot(metric, ylabel, fname, logy=True, smooth=True, window=7, use_kernel_ev
             x, y = smooth_data(x, y, window)
         plt.plot(
             x, y,
-            label=name,
+            label=_label(name),
             linewidth=2,
             linestyle=LINE_STYLES.get(name, "-"),
             color=COLOR_MAP.get(name),
@@ -127,7 +149,7 @@ def _plot_dual_x(metric, ylabel, fname, logy=True, smooth=True, window=7):
         axes[0].plot(
             x,
             y,
-            label=name,
+            label=_label(name),
             linewidth=2,
             linestyle=LINE_STYLES.get(name, "-"),
             color=COLOR_MAP.get(name),
@@ -149,7 +171,7 @@ def _plot_dual_x(metric, ylabel, fname, logy=True, smooth=True, window=7):
             axes[1].plot(
                 x,
                 y,
-                label=name,
+                label=_label(name),
                 linewidth=2,
                 linestyle=LINE_STYLES.get(name, "-"),
                 color=COLOR_MAP.get(name),
@@ -204,7 +226,7 @@ def _plot_walltime_overview(metrics, ylabels, fname, logy_flags=None, smooth=Tru
             ax.plot(
                 x,
                 y,
-                label=name,
+                label=_label(name),
                 linewidth=2,
                 linestyle=LINE_STYLES.get(name, "-"),
                 color=COLOR_MAP.get(name),
@@ -264,7 +286,7 @@ def _plot_mu_cov_final_panels(fname):
             marker="o",
             s=sub["size_ess"].values,
             alpha=0.9,
-            label=name,
+            label=_label(name),
             edgecolors="none",
         )
     axes[0].set_title("Final: size = ESS")
@@ -278,7 +300,7 @@ def _plot_mu_cov_final_panels(fname):
             marker="o",
             s=sub["size_wall"].values,
             alpha=0.9,
-            label=name,
+            label=_label(name),
             edgecolors="none",
         )
     axes[1].set_title("Final: size = wall time")
@@ -350,7 +372,7 @@ def _plot_summary_panels(fname):
         for j, m in enumerate(methods):
             ax.scatter(x[j], means[j], color=COLOR_MAP.get(m), s=60, zorder=3)
         ax.set_xticks(x)
-        ax.set_xticklabels(methods, rotation=30, ha="right")
+        ax.set_xticklabels([_label(m) for m in methods], rotation=30, ha="right")
         ax.set_ylabel(ylabel)
         if metric in {"mu_err", "cov_err", "ksd"} and np.all(np.array(means) > 0):
             ax.set_yscale("log")
@@ -366,7 +388,17 @@ _plot_summary_panels("summary_metric_panels.png")
 # 4) Final ESS comparison (use the best checkpoint per method/seed)
 latest = _latest_per_run(df_raw)
 plt.figure(figsize=(9.5, 4.5))
-sns.barplot(data=latest, x="method", y="ess", hue="method", palette="Set2", legend=False)
+ax = sns.barplot(
+    data=latest,
+    x="method",
+    y="ess",
+    hue="method",
+    palette="Set2",
+    legend=False,
+    order=plot_methods,
+)
+ax.set_xticklabels([_label(m) for m in plot_methods], rotation=30, ha="right")
+ax.set_xlabel("")
 plt.ylabel("ESS (chain dim-0)")
 plt.title("Final ESS (after last checkpoint)")
 plt.tight_layout()
@@ -380,14 +412,17 @@ latest = latest.copy()
 _grad_col = "grad_evals" if "grad_evals" in latest.columns else "iter"
 latest["ess_per_grad"] = latest["ess"] / latest[_grad_col].replace(0, np.nan)
 plt.figure(figsize=(9.5, 4.5))
-sns.barplot(
+ax = sns.barplot(
     data=latest,
     x="method",
     y="ess_per_grad",
     hue="method",
     palette="Set2",
     legend=False,
+    order=plot_methods,
 )
+ax.set_xticklabels([_label(m) for m in plot_methods], rotation=30, ha="right")
+ax.set_xlabel("")
 plt.ylabel("ESS / grad eval")
 plt.title("Final ESS per gradient eval")
 plt.tight_layout()
