@@ -1,0 +1,164 @@
+\section{Method}
+\label{sec:method}
+
+\subsection{Background: SVGD as a particle flow}
+
+Let $p(x)$ denote a target density on $\mathbb{R}^d$ and let
+$\{x_i^t\}_{i=1}^N$ be a set of particles at iteration $t$. Stein variational
+gradient descent (SVGD) evolves particles by following a deterministic
+interacting-particle flow whose velocity field is constrained to a reproducing
+kernel Hilbert space (RKHS) \cite{liu2016svgd}. A first-order discretization of
+this flow is the update
+\begin{equation}
+  x_i^{t+1} = x_i^t + h\,\phi(x_i^t),
+  \label{eq:svgd-update}
+\end{equation}
+where $h>0$ is a step size and the SVGD velocity field is
+\begin{equation}
+  \phi(x) = \frac{1}{N}\sum_{j=1}^N
+  \Big[ k(x_j, x)\,\nabla_{x_j}\log p(x_j) + \nabla_{x_j} k(x_j, x) \Big].
+  \label{eq:svgd-velocity}
+\end{equation}
+The first term in \cref{eq:svgd-velocity} is an \emph{attractive} drift that
+pushes particles toward high-density regions via the score $\nabla \log p$. The second term is a \emph{repulsive} interaction that discourages particle collapse.
+
+Throughout this paper, we limit our focus to an RBF kernel
+\begin{equation}
+  k(x, y) = \exp\Big(-\frac{\|x-y\|_2^2}{2\,h_k}\Big),
+  \label{eq:svgd-rbf-kernel}
+\end{equation}
+where the bandwidth $h_k$.\footnote{The bandwidth $h_k$ is set by the median heuristic (the median pairwise
+squared distance among particles) and scaled by a factor $\alpha>0$ to modulate
+the strength of repulsion.}
+
+\subsection{Drift--repulsion splitting and multirate integration}
+
+The central numerical observation motivating this work is that the drift and
+repulsion components of \cref{eq:svgd-velocity} can impose different stability
+constraints and can naturally evolve on different time scales. We therefore
+write the SVGD flow as a split system
+\begin{equation}
+  \dot{x} = f_{\text{rep}}(x) + f_{\text{drift}}(x),
+  \label{eq:svgd-splitting}
+\end{equation}
+where, for particle $i$,
+\begin{align}
+  f_{\text{drift}}(x_i)
+  &:= \frac{1}{N}\sum_{j=1}^N k(x_j, x_i)\,\nabla_{x_j}\log p(x_j),
+  \label{eq:svgd-drift-term}\\
+  f_{\text{rep}}(x_i)
+  &:= \frac{1}{N}\sum_{j=1}^N \nabla_{x_j} k(x_j, x_i).
+  \label{eq:svgd-rep-term}
+\end{align}
+We next define multirate discretizations that apply different substepping
+strategies to $f_{\text{drift}}$ and $f_{\text{rep}}$ while keeping a common
+macro-step size $h$.
+
+\paragraph{Strang-split SVGD.}
+
+ We can define the forward Euler steps that advances the split system forward by a stepsize $\tau$ as: 
+\begin{equation*}
+  \Psi_{\text{rep}}^{\tau}(x) = x + \tau f_{\text{rep}}(x),
+  \qquad
+  \Psi_{\text{drift}}^{\tau}(x) = x + \tau f_{\text{drift}}(x).
+\end{equation*}
+\emph{Strang
+splitting} \cite{strang1968difference}  is a classical second order method taht construct a macro-step of size $h$ by composing such
+substeps. In our setting, one macro step takes the form
+\begin{equation}
+  x^{t+1}
+  = \Psi_{\text{rep}}^{h/2}\circ\Psi_{\text{drift}}^{h}\circ\Psi_{\text{rep}}^{h/2}(x^{t}),
+  \label{eq:strang-split-svgd}
+\end{equation}
+which alternates half a repulsion step, a full drift step, and another half
+repulsion step. In practice the half-steps can in fact be implemented as $\frac{h}{2m}$ smaller substeps for stability.
+
+\paragraph{Fixed multirate SVGD (MR-SVGD).}
+Fixed multirate integrators provide a principled way to allocate different step
+sizes to fast and slow components of a split system
+\cite{Sandu_2016_MR-GARK,sarshar2019mrgark,sarshar2021implicitgark}. In our SVGD
+setting, however, higher-order multirate schemes are often not cost-effective:
+their additional stages translate into multiple evaluations of the drift and
+repulsion fields per macro step, and each such evaluation is expensive due to
+gradient computations and, in particular, $O(N^2)$ kernel interactions.
+Moreover, practical accuracy is also limited by finite-particle effects and by
+choices such as bandwidth selection and early stopping, which can mute the
+benefits of increasing time-integration order at a fixed computational budget.
+We therefore specialize to a first-order multirate construction (Euler update
+maps) that preserves a macro step of size $h$ for the drift while resolving the
+repulsion with $m$ substeps:
+\begin{equation}
+  x^{t+1}
+  = \Psi_{\text{drift}}^{h}\circ\Big(\Psi_{\text{rep}}^{h/m}\Big)^{m}(x^{t}).
+  \label{eq:mr-svgd}
+\end{equation}
+This retains a coarse drift step while stabilizing the repulsive interaction
+when particles crowd, at the cost of additional kernel evaluations.
+
+\paragraph{Adaptive multirate SVGD (Adapt-MR-SVGD).}
+We instead adapt the drift resolution by selecting the number of drift substeps
+$m$ based on a step-doubling error estimate. Given the current state after a
+single repulsion step, we compute one drift step of size $h$ and two half-steps
+of size $h/2$, and form the relative discrepancy
+\begin{equation}
+  \rho
+  = \frac{\|x_{\text{two}} - x_{\text{full}}\|_2}{\|x\|_2 + \epsilon}.
+  \label{eq:adapt-mr-error}
+\end{equation}
+We then choose
+\begin{equation}
+  m \leftarrow \mathrm{clip}\Big(\Big\lceil \sqrt{\rho/\varepsilon}\Big\rceil,
+  m_{\min}, m_{\max}\Big),
+  \label{eq:adapt-mr-m}
+\end{equation}
+and apply $m$ drift substeps of size $h/m$. Here $\varepsilon>0$ is a user-set
+tolerance and $\epsilon>0$ is a small constant to avoid division by zero. This
+strategy increases drift resolution only when the local error indicator suggests
+stiffness or rapid variation in the drift component.
+
+\paragraph{Whitening and numerical guards.}
+For high-dimensional Gaussian targets, we optionally transform particles using
+a whitening matrix $L^{-1}$ derived from the target covariance. We also clip
+gradients and clamp extreme values to avoid non-finite updates; these guards do
+not change the fixed point but improve robustness.
+
+\subsection{Pseudocode}
+
+\begin{algorithm}[t]
+\caption{Fixed multirate SVGD (MR-SVGD)}
+\label{alg:mr_svgd}
+\begin{algorithmic}[1]
+\Require Particles $\{x_i\}_{i=1}^N$, step size $h$, repulsion substeps $m$, kernel $k$
+\State $x \leftarrow \{x_i\}$
+\For{$s=1$ to $m$}
+  \State compute repulsion $f_{\text{rep}}(x)$ using \cref{eq:svgd-velocity}
+  \State $x \leftarrow x + (h/m)\,f_{\text{rep}}(x)$
+\EndFor
+\State compute drift $f_{\text{drift}}(x)$ using \cref{eq:svgd-velocity}
+\State $x \leftarrow x + h\,f_{\text{drift}}(x)$
+\State \Return $x$
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[t]
+\caption{Adaptive multirate SVGD (Adapt-MR-SVGD)}
+\label{alg:adapt_mr_svgd}
+\begin{algorithmic}[1]
+\Require Particles $\{x_i\}_{i=1}^N$, step size $h$, bounds $m_{\min}, m_{\max}$, tolerance $\varepsilon$
+\State $x \leftarrow \{x_i\}$
+\State compute repulsion $f_{\text{rep}}(x)$ using \cref{eq:svgd-velocity}
+\State $x \leftarrow x + h\,f_{\text{rep}}(x)$
+\State compute drift $f_{\text{drift}}(x)$ using \cref{eq:svgd-velocity}
+\State $x_{\text{full}} \leftarrow x + h\,f_{\text{drift}}(x)$
+\State $x_{\text{half}} \leftarrow x + (h/2)\,f_{\text{drift}}(x)$
+\State compute drift $f_{\text{drift}}(x_{\text{half}})$
+\State $x_{\text{two}} \leftarrow x_{\text{half}} + (h/2)\,f_{\text{drift}}(x_{\text{half}})$
+\State estimate relative error $\rho = \|x_{\text{two}} - x_{\text{full}}\| / (\|x\| + \epsilon)$
+\State $m \leftarrow \mathrm{clip}(\lceil \sqrt{\rho/\varepsilon} \rceil, m_{\min}, m_{\max})$
+\For{$s=1$ to $m$}
+  \State compute drift $f_{\text{drift}}(x)$
+  \State $x \leftarrow x + (h/m)\,f_{\text{drift}}(x)$
+\EndFor
+\State \Return $x$
+\end{algorithmic}
+\end{algorithm}

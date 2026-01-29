@@ -333,6 +333,124 @@ def _plot_mu_cov_final_panels(fname):
 
 _plot_mu_cov_final_panels("pareto_mu_cov_final.png")
 
+def _plot_mu_cov_final_error_panels(fname):
+    if "mu_err" not in df_raw.columns or "cov_err" not in df_raw.columns:
+        return
+    latest = _latest_per_run(df_raw)
+    latest = latest[np.isfinite(latest["mu_err"]) & np.isfinite(latest["cov_err"])]
+    if latest.empty:
+        return
+
+    methods = [m for m in plot_methods if m in latest["method"].unique()]
+    if not methods:
+        return
+
+    means_mu = []
+    stds_mu = []
+    means_cov = []
+    stds_cov = []
+    means_ess = []
+    means_wall = []
+    for m in methods:
+        sub = latest[latest["method"] == m]
+        mu_vals = sub["mu_err"].to_numpy()
+        cov_vals = sub["cov_err"].to_numpy()
+        means_mu.append(float(np.nanmean(mu_vals)))
+        stds_mu.append(float(np.nanstd(mu_vals)))
+        means_cov.append(float(np.nanmean(cov_vals)))
+        stds_cov.append(float(np.nanstd(cov_vals)))
+        if "ess" in sub.columns:
+            means_ess.append(float(np.nanmean(sub["ess"].to_numpy())))
+        else:
+            means_ess.append(np.nan)
+        if "wall_s" in sub.columns:
+            means_wall.append(float(np.nanmean(sub["wall_s"].to_numpy())))
+        else:
+            means_wall.append(np.nan)
+
+    size_ess = _size_from_values(np.asarray(means_ess))
+    size_wall = _size_from_values(np.asarray(means_wall))
+
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5.5), sharex=True, sharey=True)
+    for idx, m in enumerate(methods):
+        color = COLOR_MAP.get(m)
+        axes[0].errorbar(
+            means_mu[idx],
+            means_cov[idx],
+            xerr=stds_mu[idx],
+            yerr=stds_cov[idx],
+            fmt="none",
+            ecolor=color,
+            elinewidth=1.2,
+            capsize=4,
+            alpha=0.9,
+        )
+        axes[0].scatter(
+            means_mu[idx],
+            means_cov[idx],
+            color=color,
+            marker="o",
+            s=size_ess[idx] if np.isfinite(size_ess[idx]) else 120.0,
+            alpha=0.95,
+            label=_label(m),
+            edgecolors="black",
+            linewidths=0.6,
+            zorder=3,
+        )
+        axes[1].errorbar(
+            means_mu[idx],
+            means_cov[idx],
+            xerr=stds_mu[idx],
+            yerr=stds_cov[idx],
+            fmt="none",
+            ecolor=color,
+            elinewidth=1.2,
+            capsize=4,
+            alpha=0.9,
+        )
+        axes[1].scatter(
+            means_mu[idx],
+            means_cov[idx],
+            color=color,
+            marker="o",
+            s=size_wall[idx] if np.isfinite(size_wall[idx]) else 120.0,
+            alpha=0.95,
+            label=_label(m),
+            edgecolors="black",
+            linewidths=0.6,
+            zorder=3,
+        )
+
+    axes[0].set_title("Final: mean ± std (size = ESS)")
+    axes[1].set_title("Final: mean ± std (size = wall time)")
+    if np.all(np.array(means_mu) > 0) and np.all(np.array(means_cov) > 0):
+        for ax in axes:
+            ax.set_xscale("log")
+            ax.set_yscale("log")
+    for ax in axes:
+        ax.set_xlabel(r"$\Vert\hat\mu\Vert_2$")
+        ax.set_ylabel(r"$\Vert\hat\Sigma-\Sigma\Vert_F$")
+
+    handles, labels = axes[0].get_legend_handles_labels()
+    legend = fig.legend(
+        handles,
+        labels,
+        loc="lower center",
+        bbox_to_anchor=(0.5, -0.1),
+        ncol=3,
+        frameon=False,
+    )
+    for h in legend.legend_handles:
+        if hasattr(h, "set_sizes"):
+            h.set_sizes([60])
+    plt.tight_layout(rect=[0, 0.12, 1, 1])
+    fp = os.path.join(FIG_D, fname)
+    fig.savefig(fp, dpi=150, bbox_inches="tight")
+    print(f"saved → {fp}")
+    plt.close(fig)
+
+_plot_mu_cov_final_error_panels("pareto_mu_cov_final_mean_err.png")
+
 def _plot_summary_panels(fname):
     latest = _latest_per_run(df_raw)
     if latest.empty:

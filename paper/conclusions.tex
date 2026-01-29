@@ -1,0 +1,14 @@
+\section{Conclusions}
+\label{sec:conclusions}
+
+We presented multirate SVGD variants that split drift and repulsion to improve
+stability and efficiency on stiff targets. Across synthetic and real-world
+benchmarks, multirate splitting and adaptive drift substepping consistently
+improve robustness relative to vanilla SVGD, while remaining competitive with
+SGLD and SGHMC. The results highlight the importance of separating time scales
+in particle interactions, especially in high dimensions and multimodal
+settings.
+
+Future work includes more principled adaptivity for repulsion frequency,
+approximate kernel interactions for large $N$, and tighter links to classical
+multirate stability theory for particle-based Bayesian inference.

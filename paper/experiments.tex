@@ -1,0 +1,124 @@
+\section{Experiments and Results}
+\label{sec:experiments}
+
+We evaluate SVGD variants on five benchmarks: a 50D Gaussian target, a suite of
+2D synthetic targets, UCI logistic regression, a 2D Gaussian mixture (mix8),
+and a small Bayesian neural network (BNN). Across all experiments we report
+effective sample size (ESS), KSD when available, and task-specific metrics.
+Early stopping uses KSD when it degrades persistently to avoid late-run
+instabilities.
+
+\subsection{50D Gaussian}
+
+This high-dimensional benchmark stresses stability and scaling. We optionally
+whiten coordinates using the target covariance to stabilize drift and repulsion.
+We report moment errors ($\|\hat{\mu}-\mu\|_2$ and
+$\|\hat{\Sigma}-\Sigma\|_F$), ESS, KSD, and mean log probability.
+
+\begin{figure}[t]
+  \centering
+  \safeincludegraphics[width=0.9\linewidth]{../figures/50d/pareto_mu_cov_final_mean_err.png}
+  \caption{50D Gaussian: final mean $\pm$ std Pareto plot in moment-error space
+  with marker size encoding ESS (left) and wall time (right).}
+  \label{fig:gauss50_pareto}
+\end{figure}
+
+\begin{figure}[t]
+  \centering
+  \safeincludegraphics[width=0.9\linewidth]{../figures/50d/summary_metric_panels.png}
+  \caption{50D Gaussian: summary panels for moment errors, KSD, and ESS.}
+  \label{fig:gauss50_summary}
+\end{figure}
+
+\begin{figure}[t]
+  \centering
+  \safeincludegraphics[width=0.9\linewidth]{../figures/50d/walltime_overview.png}
+  \caption{50D Gaussian: wall-time overview across key metrics.}
+  \label{fig:gauss50_walltime}
+\end{figure}
+
+\subsection{2D synthetic targets}
+
+We evaluate banana, ring, squiggly, two-moons, and funnel targets. Metrics
+include KSD, ESS, mean log-probability, and grid-based $L_1$ error where
+available. Results are summarized with per-target plots and a summary table.
+
+\begin{figure}[t]
+  \centering
+  \fbox{\parbox{0.9\linewidth}{Placeholder for 2D summary figure.}}
+  \caption{2D targets: placeholder for the main figure.}
+  \label{fig:2d_placeholder}
+\end{figure}
+
+\begin{table}[t]
+  \centering
+  \fbox{\parbox{0.9\linewidth}{Placeholder for 2D summary table.}}
+  \caption{2D targets: placeholder summary table.}
+  \label{tab:2d_summary}
+\end{table}
+
+\subsection{Mixture2D (mix8)}
+
+This benchmark emphasizes mode discovery and coverage. We report mode coverage,
+mode entropy, minimum mass per mode, KSD, and grid $L_1$ error. The summary
+panels highlight the importance of repulsion for maintaining coverage.
+
+\begin{figure}[t]
+  \centering
+  \safeincludegraphics[width=0.9\linewidth]{../figures/mixture2d/mix8/mix8_summary_metric_panels.png}
+  \caption{Mixture2D: summary panels emphasizing mode coverage and entropy.}
+  \label{fig:mix8_summary}
+\end{figure}
+
+\subsection{UCI logistic regression}
+
+We benchmark on standard UCI datasets and report accuracy, NLL, ECE, ESS, and
+KSD (when computed). We summarize results with per-dataset summary panels
+without detailing each dataset individually \cite{dua2019uci}.
+
+\begin{figure}[t]
+  \centering
+  \begin{minipage}{0.48\linewidth}
+    \centering
+    \safeincludegraphics[width=\linewidth]{../figures/uci/breast_cancer/breast_cancer_summary_metric_panels.png}
+  \end{minipage}
+  \begin{minipage}{0.48\linewidth}
+    \centering
+    \safeincludegraphics[width=\linewidth]{../figures/uci/ionosphere/ionosphere_summary_metric_panels.png}
+  \end{minipage}
+
+  \begin{minipage}{0.48\linewidth}
+    \centering
+    \safeincludegraphics[width=\linewidth]{../figures/uci/spambase/spambase_summary_metric_panels.png}
+  \end{minipage}
+  \begin{minipage}{0.48\linewidth}
+    \centering
+    \safeincludegraphics[width=\linewidth]{../figures/uci/a5a/a5a_summary_metric_panels.png}
+  \end{minipage}
+  \caption{UCI logistic regression: summary panels per dataset.}
+  \label{fig:uci_summary}
+\end{figure}
+
+\subsection{Bayesian neural network}
+
+We evaluate a 1-hidden-layer BNN on the same UCI datasets. We report accuracy,
+NLL, ECE, and ESS, and summarize results with panels analogous to the logistic
+regression benchmarks.
+
+\begin{figure}[t]
+  \centering
+  \begin{minipage}{0.32\linewidth}
+    \centering
+    \safeincludegraphics[width=\linewidth]{../figures/bnn/breast_cancer/breast_cancer_summary_metric_panels.png}
+  \end{minipage}
+  \begin{minipage}{0.32\linewidth}
+    \centering
+    \safeincludegraphics[width=\linewidth]{../figures/bnn/ionosphere/ionosphere_summary_metric_panels.png}
+  \end{minipage}
+  \begin{minipage}{0.32\linewidth}
+    \centering
+    \safeincludegraphics[width=\linewidth]{../figures/bnn/a5a/a5a_summary_metric_panels.png}
+  \end{minipage}
+  \caption{BNN: summary panels (accuracy, NLL, ECE, ESS).}
+  \label{fig:bnn_summary}
+\end{figure}

@@ -1,0 +1,241 @@
+---
+---
+
+@article{Sarshar2025physicsinformed,
+  abbr={CAMC},
+  title={Physics-informed neural networks for PDE-constrained optimization and control},
+  author={Barry-Straume, Jostein and Sarshar, Arash and Popov, Andrey A and Sandu, Adrian},
+  journal={Communications on Applied Mathematics and Computation},
+  pages={1--24},
+  year={2025},
+  publisher={Springer},
+  html={https://link.springer.com/article/10.1007/s42967-025-00499-x},
+  doi = {https://doi.org/10.1007/s42967-025-00499-x},
+  pdf = {https://link.springer.com/content/pdf/10.1007/s42967-025-00499-x.pdf},
+  abstract={The goal of optimal control is to determine a sequence of inputs for maximizing or minimizing a given performance criterion subject to the dynamics and constraints of the system under observation. This work introduces Control Physics-Informed Neural Networks (PINNs), which simultaneously learn both the system states and the optimal control signal in a single-stage framework that leverages the system’s underlying physical laws. While prior approaches often follow a two-stage process-modeling, the system first and then devising its control—the presented novel framework embeds the necessary optimality conditions directly into the network architecture and loss function. We demonstrate the effectiveness of the novel methodology by solving various open-loop optimal control problems governed by analytical, one-dimensional, and two-dimensional partial differential equations (PDEs).},
+  keywords={Optimal control, Physics-informed neural networks, Partial differential equations, Machine learning},
+  selected={true},
+  video={https://youtu.be/SOHPQA5YR7s?si=VgcxB197wOx_-aPA}
+}
+
+@article{sarshar2024improving,
+  abbr={JMLMC},
+  title={Improving ADAM through an Implicit-Explicit (IMEX) Time-Stepping Approach},
+  author={Bhattacharjee, Abhinab and Popov, Andrey A and Sarshar, Arash and Sandu, Adrian},
+  journal={Journal of Machine Learning for Modeling and Computing},
+  volume={5},
+  number={3},
+  year={2024},
+  publisher={Begel House Inc.},
+  doi={10.1615/JMachLearnModelComput.2024053508},
+  html={https://www.dl.begellhouse.com/journals/558048804a15188a,7dd2ba1c3481309f,499cb94c7a94a534.html},
+  pdf={https://www.dl.begellhouse.com/download/article/499cb94c7a94a534/JMLMC0503(3)-53508.pdf},
+  abstract={The ADAM optimizer, often used in machine learning for neural network training, corresponds to an underlying ordinary differential equation (ODE) in the limit of very small learning rates. This work shows that the classical ADAM algorithm is a first-order implicit-explicit (IMEX) Euler discretization of the underlying ODE. Employing the time discretization point of view, we propose new extensions of the ADAM scheme obtained by using higher-order IMEX methods to solve the ODE. Based on this approach, we derive a new optimization algorithm for neural network training that performs better than classical ADAM on several regression and classification problems.},
+  keywords={Optimization algorithms, Deep learning, ordinary differential equations, neural networks},
+  selected={true},
+  slides = {adam-gark.pdf}
+}
+
+@article{Sarshar2025deeponetsbaye,
+abbr={CPC},
+title = {Deep operator networks for Bayesian parameter estimation in PDEs},
+journal = {Computer Physics Communications},
+volume = {317},
+pages = {109853},
+year = {2025},
+issn = {0010-4655},
+doi = {https://doi.org/10.1016/j.cpc.2025.109853},
+url = {https://www.sciencedirect.com/science/article/pii/S0010465525003558},
+author = {Amogh Raj and Sakol Bun and Keerthana Srinivasa and Carol Eunice Gudumotou and Arash Sarshar},
+keywords = {Physics-informed neural networks, Partial differential equations, Parameter estimation, Machine learning},
+abstract = {We present a novel framework combining Deep Operator Networks (DeepONets) with Physics-Informed Neural Networks (PINNs) to solve partial differential equations (PDEs) while estimating their unknown parameters. By integrating data-driven learning with physical constraints, our method achieves robust and accurate solutions across diverse scenarios. Bayesian training is implemented through variational inference, allowing for comprehensive uncertainty quantification for both data and model uncertainties. This ensures reliable prediction and parameter estimates even in noisy conditions or when some of the physical equations governing the problem are missing. The framework demonstrates its efficacy in solving forward and inverse problems, including the 1D unsteady heat equation, 2D reaction-diffusion equations, 3D eigenvalue problem, and various regression tasks with sparse, noisy observations. This approach provides a computationally efficient and generalizable method for addressing uncertainty quantification in PDE surrogate modeling.},
+selected={true},
+video={https://youtu.be/1iTHm9u9lr0?si=H3hpCH4xsPjRYkcG}
+}
+
+@article{sarshar2021glmadi,
+  abbr={JCAM},
+  title={Alternating directions implicit integration in a general linear method framework},
+  author={Sarshar, Arash and Roberts, Steven and Sandu, Adrian},
+  journal={Journal of Computational and Applied Mathematics},
+  volume={387},
+  pages={112496},
+  year={2021},
+  publisher={Elsevier},
+  doi={10.1016/j.cam.2019.112496},
+  html={https://www.sciencedirect.com/science/article/abs/pii/S0377042719306247},
+  pdf={https://www.researchgate.net/profile/Arash-Sarshar/publication/330870697_Alternating_Directions_Implicit_Integration_in_a_General_Linear_Method_Framework/links/5dc05cda92851c81802c4def/Alternating-Directions-Implicit-Integration-in-a-General-Linear-Method-Framework.pdf},
+  abstract={Alternating Directions Implicit (ADI) integration is an operator splitting approach to solve parabolic and elliptic partial differential equations in multiple dimensions based on solving sequentially a set of related one-dimensional equations. Classical ADI methods have order at most two, due to the splitting errors. This work proposes a new ADI approach based on the partitioned General Linear Methods framework, allowing construction of high order ADI methods.},
+  keywords={Initial value problems, time integration, IMEX methods, alternating directions}
+}
+
+@article{sarshar2021glmros,
+  abbr={Preprint},
+  title={Linearly-Implicit General Linear Methods},
+  author={Sarshar, Arash and Sandu, Adrian},
+  journal={Virginia Tech Technical Report},
+  year={2021},
+  pdf={https://vtechworks.lib.vt.edu/handle/10919/109996},
+  abstract={Linearly implicit Runge-Kutta methods provide a fitting balance between implicit treatment of stiff systems and computational costs. We extend the class of linearly implicit Runge-Kutta methods to include multi-stage and multi-step methods. We discuss the order condition to achieve high stage order and overall accuracy while admitting arbitrary Jacobians.},
+  keywords={Time integration, Implicit methods}
+}
+
+@article{sarshar2019mrgark,
+  abbr={SISC},
+  title={Design of High-Order Decoupled Multirate GARK Schemes},
+  author={Sarshar, Arash and Roberts, Steven and Sandu, Adrian},
+  journal={SIAM Journal on Scientific Computing},
+  volume={41},
+  number={2},
+  pages={A816--A847},
+  year={2019},
+  publisher={SIAM},
+  doi={10.1137/18M1182875},
+  arxiv={1804.07716},
+  html={https://epubs.siam.org/doi/abs/10.1137/18M1182875},
+  video={https://www.pathlms.com/siam/courses/10878/sections/14361/video_presentations/127463},
+  slides={https://docs.google.com/presentation/d/1M43xXqBg24S0TZVmhumRr_c_FNAICulXwpaRKIR-eTs/pub?start=false&loop=false&delayms=30000},
+  abstract={Multirate time integration methods apply different step sizes to resolve different components of the system based on the local activity levels. This local selection of step sizes allows increased computational efficiency while achieving the desired solution accuracy. This work focuses on the design of practical high-order multirate methods using the theoretical framework of generalized additive Runge-Kutta (MrGARK) methods.},
+  keywords={multirate integration, generalized additive Runge-Kutta schemes},
+  selected={true}
+}
+
+@article{sarshar2020parimex,
+  abbr={CAMC},
+  title={Parallel implicit-explicit general linear methods},
+  author={Sarshar, Arash and Roberts, Steven and Sandu, Adrian},
+  journal={Communications on Applied Mathematics and Computation},
+  volume={3},
+  pages={649--669},
+  year={2021},
+  publisher={Springer},
+  doi={10.1007/s42967-020-00083-5},
+  arxiv={2002.00868},
+  html={https://link.springer.com/article/10.1007/s42967-020-00083-5},
+  abstract={This work proposes a unified formulation of splitting time integration schemes in the framework of general-structure additive Runge-Kutta (GARK) methods. We develop implicit-implicit (IMIM) GARK schemes and show that classical splitting methods belong to the IMIM GARK family.},
+  keywords={Parallel, Time integration, IMEX methods, General linear methods}
+}
+
+@article{sarshar2022surrogate,
+  abbr={SISC},
+  title={A Fast Time-Stepping Strategy for Dynamical Systems Equipped with a Surrogate Model},
+  author={Sarshar, Arash and Roberts, Steven and Sandu, Adrian},
+  journal={SIAM Journal on Scientific Computing},
+  volume={44},
+  number={3},
+  pages={A1405--A1430},
+  year={2022},
+  publisher={SIAM},
+  doi={10.1137/20M1386281},
+  arxiv={2011.03688},
+  html={https://epubs.siam.org/doi/abs/10.1137/20M1386281},
+  abstract={This work proposes a new accelerated time-stepping strategy that combines information from both full complex models and inexpensive surrogate models. The approach is based on the multirate infinitesimal general-structure additive Runge-Kutta (MRI-GARK) framework.},
+  keywords={Multirate time integration, Surrogate model, General-structure additive Runge-Kutta methods, Reduced-order modeling, Machine learning},
+  selected={true}
+}
+
+@article{sarshar2021jacvec,
+  abbr={JCAM},
+  title={Analytical Jacobian-vector products for the matrix-free time integration of partial differential equations},
+  author={Sarshar, Arash and Roberts, Steven and Sandu, Adrian},
+  journal={Journal of Computational and Applied Mathematics},
+  volume={382},
+  pages={113110},
+  year={2021},
+  publisher={Elsevier},
+  doi={10.1016/j.cam.2020.113110},
+  html={https://www.sciencedirect.com/science/article/pii/S0377042716302199},
+  pdf={https://www.academia.edu/download/68213045/S0377042716302199.pdf},
+  abstract={Traditional time discretization methods use a single timestep for the entire system of interest and can perform poorly when the dynamics of the system exhibits a wide range of time scales. This work extends the MRI-GARK framework by introducing coupled implicit methods to solve stiff multiscale systems.},
+  keywords={Initial value problems, Computational fluid dynamics, Implicit time integration}
+}
+
+@article{sarshar2020coupledmri,
+  abbr={SISC},
+  title={Coupled multirate infinitesimal GARK schemes for stiff systems with multiple time scales},
+  author={Sandu, Adrian and Günther, Michael and Roberts, Steven and Sarshar, Arash},
+  journal={SIAM Journal on Scientific Computing},
+  volume={42},
+  number={3},
+  pages={A1609--A1638},
+  year={2020},
+  publisher={SIAM},
+  doi={10.1137/19M1266952},
+  arxiv={1812.00808},
+  html={https://epubs.siam.org/doi/abs/10.1137/19M1266952},
+  abstract={This work extends the MRI-GARK framework by introducing coupled implicit methods to solve stiff multiscale systems. The coupled approach has the potential to considerably improve the overall stability of the scheme.},
+  keywords={Initial value problems, Multirate, Implicit time integration}
+}
+
+@article{sarshar2021implicitgark,
+  abbr={JSC},
+  title={Implicit multirate GARK methods},
+  author={Sandu, Adrian and Günther, Michael and Roberts, Steven and Sarshar, Arash},
+  journal={Journal of Scientific Computing},
+  volume={87},
+  pages={1--32},
+  year={2021},
+  publisher={Springer},
+  doi={10.1007/s10915-020-01400-z},
+  arxiv={1910.14079},
+  html={https://link.springer.com/article/10.1007/s10915-020-01400-z},
+  abstract={This work considers multirate generalized-structure additively partitioned Runge-Kutta (MrGARK) methods for solving stiff systems of ordinary differential equations (ODEs) with multiple time scales.},
+  keywords={Multirate, Time integration, Implicit methods, Stability analysis}
+}
+
+@article{sarshar2017matrixfree,
+  abbr={CF},
+  title={A numerical investigation of matrix-free implicit time-stepping methods for large CFD simulations},
+  author={Tranquilli, Paul and Sarshar, Arash and Sandu, Adrian},
+  journal={Computers \& Fluids},
+  volume={159},
+  pages={53--63},
+  year={2017},
+  publisher={Elsevier},
+  doi={10.1016/j.compfluid.2017.09.014},
+  arxiv={1607.06834},
+  html={https://doi.org/10.1016/j.compfluid.2017.09.014},
+  abstract={This paper is concerned with development and testing of advanced time-stepping methods for large unsteady CFD problems. We compare explicit methods with matrix-free implementations of implicit, linearly-implicit, as well as Rosenbrock-Krylov methods.},
+  keywords={Initial value problems, Computational fluid dynamics, Implicit time integration}
+}
+
+@article{sarshar2022metaae,
+  abbr={arXiv},
+  title={A Meta-learning Formulation of the Autoencoder Problem for Non-linear Dimensionality Reduction},
+  author={Sarshar, Arash and Sandu, Adrian},
+  journal={arXiv preprint},
+  year={2022},
+  arxiv={2207.06676},
+  pdf={https://arxiv.org/abs/2207.06676},
+  abstract={We show that the canonical formulation of autoencoders suffers from several deficiencies that can hinder their performance. Using a meta-learning approach, we reformulate the autoencoder problem as a bi-level optimization procedure that explicitly solves the dimensionality reduction task.},
+  keywords={autoencoder, dimensionality reduction, machine learning, meta-learning}
+}
+
+@inproceedings{sarshar2013reflectarray,
+  abbr={EuCAP},
+  title={Design of a stacked stub-loaded patch element for X-band reflectarray antenna with true time delay},
+  author={Sarshar, Arash and Khodabandeh, A and Komjani, N},
+  booktitle={2013 European Conference on Antennas and Propagation (EuCAP)},
+  pages={1--4},
+  year={2013},
+  organization={IEEE},
+  html={https://ieeexplore.ieee.org/abstract/document/6546931},
+  abstract={A multilayer reflectarray element consisting of a stacked stub-loaded patch is proposed for X-band linear polarization reflectarray antenna.},
+  keywords={Antenna arrays, Delay effects}
+}
+
+@article{sarshar2022unifiedadi,
+  abbr={JCP},
+  title={A unified formulation of splitting-based implicit time integration schemes},
+  author={Sandu, Adrian and Roberts, Steven and Sarshar, Arash},
+  journal={Journal of Computational Physics},
+  volume={448},
+  pages={110766},
+  year={2022},
+  publisher={Elsevier},
+  doi={10.1016/j.jcp.2021.110766},
+  arxiv={2011.03688},
+  html={https://www.sciencedirect.com/science/article/pii/S0021999121006616},
+  abstract={This work proposes a unified formulation of splitting time integration schemes in the framework of general-structure additive Runge-Kutta (GARK) methods.},
+  keywords={General-structure additive Runge-Kutta methods, Alternating direction implicit methods}
+}

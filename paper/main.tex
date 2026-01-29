@@ -1,0 +1,52 @@
+\documentclass[preprint,12pt]{elsarticle}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{bm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{url}
+\usepackage{cleveref}
+\journal{Journal Name}
+
+\makeatletter
+\newcommand{\safeincludegraphics}[2][]{%
+  \begingroup
+  \edef\@imgfile{\detokenize{#2}}%
+  \IfFileExists{\@imgfile}{\includegraphics[#1]{\@imgfile}}{%
+    \fbox{\parbox{0.9\linewidth}{Missing figure: \@imgfile}}%
+  }%
+  \endgroup
+}
+\makeatother
+
+\begin{document}
+
+\begin{frontmatter}
+
+\title{Multirate Sampling with Stein Variational Gradient Descent (Working Title)}
+
+\author{Arash Sarshar}
+\address{California State University, Long Beach}
+
+\begin{abstract}
+\input{abstract}
+\end{abstract}
+
+\begin{keyword}
+Stein variational gradient descent \sep multirate integration \sep particle methods \sep kernel Stein discrepancy
+\end{keyword}
+
+\end{frontmatter}
+
+\input{introduction}
+\input{method}
+\input{experiments}
+\input{conclusions}
+
+\bibliographystyle{elsarticle-num}
+\bibliography{Bib/references,Bib/sarshar,Bib/sandu,Bib/ode_multirate,Bib/ode_imex,Bib/ode_general}
+
+\end{document}
