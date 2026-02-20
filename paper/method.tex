@@ -54,7 +54,7 @@ We next define multirate discretizations that apply different substepping
 strategies to $f_{\text{drift}}$ and $f_{\text{rep}}$ while keeping a common
 macro-step size $h$.
 
-\paragraph{Strang-split SVGD.}
+\paragraph{Strang-split SVGD}
 
  We can define the forward Euler steps that advances the split system forward by a stepsize $\tau$ as: 
 \begin{equation*}
@@ -73,7 +73,7 @@ substeps. In our setting, one macro step takes the form
 which alternates half a repulsion step, a full drift step, and another half
 repulsion step. In practice the half-steps can in fact be implemented as $\frac{h}{2m}$ smaller substeps for stability.
 
-\paragraph{Fixed multirate SVGD (MR-SVGD).}
+\paragraph{Fixed multirate SVGD (MR-SVGD)}
 Fixed multirate integrators provide a principled way to allocate different step
 sizes to fast and slow components of a split system
 \cite{Sandu_2016_MR-GARK,sarshar2019mrgark,sarshar2021implicitgark}. In our SVGD
@@ -93,16 +93,35 @@ repulsion with $m$ substeps:
   \label{eq:mr-svgd}
 \end{equation}
 This retains a coarse drift step while stabilizing the repulsive interaction
-when particles crowd, at the cost of additional kernel evaluations.
+when particles crowd, at the cost of additional kernel evaluations. The
+corresponding implementation-level procedure is summarized in
+\cref{alg:mr_svgd}.
 
 \paragraph{Adaptive multirate SVGD (Adapt-MR-SVGD).}
-We instead adapt the drift resolution by selecting the number of drift substeps
-$m$ based on a step-doubling error estimate. Given the current state after a
-single repulsion step, we compute one drift step of size $h$ and two half-steps
-of size $h/2$, and form the relative discrepancy
+Fixed-$m$ schedules are robust but can over-resolve easy regions and
+under-resolve difficult ones. We therefore adaptively choose the number of
+drift microsteps $m$ at each macro step, while keeping repulsion at one macro
+update. This follows the standard local-error-control perspective used in ODE
+integrators, where local error estimates are used to adjust resolution
+\cite{Hairer_book_I}. In our case, we use step-doubling on the
+drift part to estimate that local error:
+\begin{equation}
+  x^{t+1}
+  = \Big(\Psi_{\text{drift}}^{h/m}\Big)^m\circ\Psi_{\text{rep}}^{h}(x^t),
+  \qquad m = m(x^t,h).
+  \label{eq:adapt-mr-step}
+\end{equation}
+After the repulsion update (state $x$), we compute one drift step of size $h$
+and two half-steps of size $h/2$:
+\begin{align}
+  x_{\text{full}} &= x + h\,f_{\text{drift}}(x), \\
+  x_{\text{half}} &= x + \tfrac{h}{2}\,f_{\text{drift}}(x), \\
+  \tilde{x}_{\text{full}}  &= x_{\text{half}} + \tfrac{h}{2}\,f_{\text{drift}}(x_{\text{half}}).
+\end{align}
+We then form the relative discrepancy
 \begin{equation}
   \rho
-  = \frac{\|x_{\text{two}} - x_{\text{full}}\|_2}{\|x\|_2 + \epsilon}.
+  = \frac{\|\tilde{x}_{\text{full}} - x_{\text{full}}\|_2}{\|x\|_2 + \epsilon}.
   \label{eq:adapt-mr-error}
 \end{equation}
 We then choose
@@ -114,15 +133,19 @@ We then choose
 and apply $m$ drift substeps of size $h/m$. Here $\varepsilon>0$ is a user-set
 tolerance and $\epsilon>0$ is a small constant to avoid division by zero. This
 strategy increases drift resolution only when the local error indicator suggests
-stiffness or rapid variation in the drift component.
+stiffness or rapid variation in the drift component. In implementation, if
+$m\le 2$ we reuse the already computed step-doubling trajectory to avoid extra
+drift evaluations; see \cref{alg:adapt_mr_svgd}.
 
-\paragraph{Whitening and numerical guards.}
+\paragraph{Whitening and numerical guards}
 For high-dimensional Gaussian targets, we optionally transform particles using
 a whitening matrix $L^{-1}$ derived from the target covariance. We also clip
 gradients and clamp extreme values to avoid non-finite updates; these guards do
 not change the fixed point but improve robustness.
 
 \subsection{Pseudocode}
+Algorithms \cref{alg:mr_svgd,alg:adapt_mr_svgd} summarize the fixed and
+adaptive multirate updates used in our experiments.
 
 \begin{algorithm}[t]
 \caption{Fixed multirate SVGD (MR-SVGD)}
@@ -146,19 +169,23 @@ not change the fixed point but improve robustness.
 \begin{algorithmic}[1]
 \Require Particles $\{x_i\}_{i=1}^N$, step size $h$, bounds $m_{\min}, m_{\max}$, tolerance $\varepsilon$
 \State $x \leftarrow \{x_i\}$
-\State compute repulsion $f_{\text{rep}}(x)$ using \cref{eq:svgd-velocity}
+\State compute repulsion $f_{\text{rep}}(x)$ using \cref{eq:svgd-rep-term}
 \State $x \leftarrow x + h\,f_{\text{rep}}(x)$
-\State compute drift $f_{\text{drift}}(x)$ using \cref{eq:svgd-velocity}
+\State compute drift $f_{\text{drift}}(x)$ using \cref{eq:svgd-drift-term}
 \State $x_{\text{full}} \leftarrow x + h\,f_{\text{drift}}(x)$
 \State $x_{\text{half}} \leftarrow x + (h/2)\,f_{\text{drift}}(x)$
 \State compute drift $f_{\text{drift}}(x_{\text{half}})$
-\State $x_{\text{two}} \leftarrow x_{\text{half}} + (h/2)\,f_{\text{drift}}(x_{\text{half}})$
-\State estimate relative error $\rho = \|x_{\text{two}} - x_{\text{full}}\| / (\|x\| + \epsilon)$
+\State $\tilde{x}_{\text{full}} \leftarrow x_{\text{half}} + (h/2)\,f_{\text{drift}}(x_{\text{half}})$
+\State estimate relative error $\rho = \|\tilde{x}_{\text{full}} - x_{\text{full}}\| / (\|x\| + \epsilon)$
 \State $m \leftarrow \mathrm{clip}(\lceil \sqrt{\rho/\varepsilon} \rceil, m_{\min}, m_{\max})$
-\For{$s=1$ to $m$}
-  \State compute drift $f_{\text{drift}}(x)$
-  \State $x \leftarrow x + (h/m)\,f_{\text{drift}}(x)$
-\EndFor
+\If{$m \le 2$}
+  \State $x \leftarrow \tilde{x}_{\text{full}}$ \Comment{reuse step-doubling path}
+\Else
+  \For{$s=1$ to $m$}
+    \State compute drift $f_{\text{drift}}(x)$
+    \State $x \leftarrow x + (h/m)\,f_{\text{drift}}(x)$
+  \EndFor
+\EndIf
 \State \Return $x$
 \end{algorithmic}
 \end{algorithm}
