@@ -97,56 +97,6 @@ when particles crowd, at the cost of additional kernel evaluations. The
 corresponding implementation-level procedure is summarized in
 \cref{alg:mr_svgd}.
 
-\paragraph{Adaptive multirate SVGD (Adapt-MR-SVGD).}
-Fixed-$m$ schedules are robust but can over-resolve easy regions and
-under-resolve difficult ones. We therefore adaptively choose the number of
-drift microsteps $m$ at each macro step, while keeping repulsion at one macro
-update. This follows the standard local-error-control perspective used in ODE
-integrators, where local error estimates are used to adjust resolution
-\cite{Hairer_book_I}. In our case, we use step-doubling on the
-drift part to estimate that local error:
-\begin{equation}
-  x^{t+1}
-  = \Big(\Psi_{\text{drift}}^{h/m}\Big)^m\circ\Psi_{\text{rep}}^{h}(x^t),
-  \qquad m = m(x^t,h).
-  \label{eq:adapt-mr-step}
-\end{equation}
-After the repulsion update (state $x$), we compute one drift step of size $h$
-and two half-steps of size $h/2$:
-\begin{align}
-  x_{\text{full}} &= x + h\,f_{\text{drift}}(x), \\
-  x_{\text{half}} &= x + \tfrac{h}{2}\,f_{\text{drift}}(x), \\
-  \tilde{x}_{\text{full}}  &= x_{\text{half}} + \tfrac{h}{2}\,f_{\text{drift}}(x_{\text{half}}).
-\end{align}
-We then form the relative discrepancy
-\begin{equation}
-  \rho
-  = \frac{\|\tilde{x}_{\text{full}} - x_{\text{full}}\|_2}{\|x\|_2 + \epsilon}.
-  \label{eq:adapt-mr-error}
-\end{equation}
-We then choose
-\begin{equation}
-  m \leftarrow \mathrm{clip}\Big(\Big\lceil \sqrt{\rho/\varepsilon}\Big\rceil,
-  m_{\min}, m_{\max}\Big),
-  \label{eq:adapt-mr-m}
-\end{equation}
-and apply $m$ drift substeps of size $h/m$. Here $\varepsilon>0$ is a user-set
-tolerance and $\epsilon>0$ is a small constant to avoid division by zero. This
-strategy increases drift resolution only when the local error indicator suggests
-stiffness or rapid variation in the drift component. In implementation, if
-$m\le 2$ we reuse the already computed step-doubling trajectory to avoid extra
-drift evaluations; see \cref{alg:adapt_mr_svgd}.
-
-\paragraph{Whitening and numerical guards}
-For high-dimensional Gaussian targets, we optionally transform particles using
-a whitening matrix $L^{-1}$ derived from the target covariance. We also clip
-gradients and clamp extreme values to avoid non-finite updates; these guards do
-not change the fixed point but improve robustness.
-
-\subsection{Pseudocode}
-Algorithms \cref{alg:mr_svgd,alg:adapt_mr_svgd} summarize the fixed and
-adaptive multirate updates used in our experiments.
-
 \begin{algorithm}[t]
 \caption{Fixed multirate SVGD (MR-SVGD)}
 \label{alg:mr_svgd}
@@ -162,6 +112,69 @@ adaptive multirate updates used in our experiments.
 \State \Return $x$
 \end{algorithmic}
 \end{algorithm}
+
+\paragraph{Adaptive multirate SVGD (Adapt-MR-SVGD)}
+Although fixed-$m$ schedules are simple and robust, they impose a uniform drift
+resolution along the entire trajectory. As a result, they may spend unnecessary
+computational effort in benign regions while providing insufficient resolution
+in locally stiff regimes. To address this imbalance, we choose the number of
+drift microsteps $m$ adaptively at each macro step, while retaining one
+repulsion update per macro step. This follows the standard local-error-control
+perspective used in ODE
+integrators, where local error estimates are used to adjust resolution
+\cite{Hairer_book_I}. After the repulsion update, denote the state by
+$x=\Psi_{\text{rep}}^{h}(x^{t})$. We estimate the local
+drift-discretization error by comparing one drift step of size
+$h$ with two consecutive drift half-steps of size $h/2$,
+\begin{align}
+  x_{\text{full}} &= x + h\,f_{\text{drift}}(x), \\
+  x_{\text{half}} &= x + \tfrac{h}{2}\,f_{\text{drift}}(x), \\
+  \tilde{x}_{\text{full}}  &= x_{\text{half}} + \tfrac{h}{2}\,f_{\text{drift}}(x_{\text{half}}).
+\end{align}
+We then form the relative discrepancy
+\begin{equation}
+  \rho
+  = \frac{\|\tilde{x}_{\text{full}} - x_{\text{full}}\|_2}{\|x\|_2 + \epsilon}.
+  \label{eq:adapt-mr-error}
+\end{equation}
+which serves as a dimensionless local error indicator for the drift update.
+For a first-order drift integrator, the step-doubling discrepancy behaves
+locally as
+\[
+\rho(h) = C h^2 + \mathcal{O}(h^3).
+\]
+If the drift step is replaced by $m$ microsteps of size $h/m$, then
+\[
+\rho_m \approx C(h/m)^2 \approx \rho/m^2.
+\]
+Imposing the target local accuracy $\rho_m \approx \varepsilon$ gives
+$m \approx \sqrt{\rho/\varepsilon}$. We therefore use the clipped integer
+controller
+\begin{equation}
+  m \leftarrow \mathrm{clip}\Big(\Big\lceil \sqrt{\rho/\varepsilon}\Big\rceil,
+  m_{\min}, m_{\max}\Big),
+  \label{eq:adapt-mr-m}
+\end{equation}
+which increases $m$ when $\rho>\varepsilon$ and decreases it when
+$\rho\le\varepsilon$, while enforcing the robustness bounds
+$m_{\min}\le m\le m_{\max}$.
+The macro-step update is then
+\begin{equation}
+  x^{t+1}
+  = \Big(\Psi_{\text{drift}}^{h/m}\Big)^m\circ\Psi_{\text{rep}}^{h}(x^t),
+  \qquad m = m(x^t,h).
+  \label{eq:adapt-mr-step}
+\end{equation}
+Here $\varepsilon>0$ is a user-set
+tolerance and $\epsilon>0$ is a small constant to avoid division by zero. This
+strategy increases drift resolution only when the local error indicator suggests
+stiffness or rapid variation in the drift component. See \cref{alg:adapt_mr_svgd} for complete implementation.
+
+
+\begin{remark}
+In implementation, if $m\le 2$ we reuse the already computed step-doubling
+trajectory to avoid extra drift evaluations.
+\end{remark}
 
 \begin{algorithm}[t]
 \caption{Adaptive multirate SVGD (Adapt-MR-SVGD)}
@@ -189,3 +202,9 @@ adaptive multirate updates used in our experiments.
 \State \Return $x$
 \end{algorithmic}
 \end{algorithm}
+
+\paragraph{Whitening and numerical guards}
+For high-dimensional Gaussian targets, we optionally transform particles using
+a whitening matrix $L^{-1}$ derived from the target covariance. We also clip
+gradients and clamp extreme values to avoid non-finite updates; these guards do
+not change the fixed point but improve robustness.
