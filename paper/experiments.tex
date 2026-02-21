@@ -1,19 +1,52 @@
 \section{Experiments and Results}
 \label{sec:experiments}
 
-We evaluate SVGD variants on five benchmarks: a 50D Gaussian target, a suite of
-2D synthetic targets, UCI logistic regression, a 2D Gaussian mixture (mix8),
-and a small Bayesian neural network (BNN). Across all experiments we report
-effective sample size (ESS), KSD when available, and task-specific metrics.
-Early stopping uses KSD when it degrades persistently to avoid late-run
-instabilities.
+We evaluate multirate SVGD variants on five benchmark groups: a 50D Gaussian
+target, a suite of 2D synthetic targets, UCI logistic regression, a 2D Gaussian
+mixture (mix8), and a one-hidden-layer Bayesian neural network (BNN). The
+comparison focuses on both statistical quality and computational cost.
+
+\subsection{Experimental protocol}
+
+Across benchmarks, we compare the same method family whenever applicable:
+vanilla SVGD, Strang-split SVGD, fixed multirate SVGD (MR-SVGD), adaptive
+multirate SVGD (Adapt-MR-SVGD), and the single-chain baselines SGLD and an
+SGHMC-style method.
+The SVGD-family updates are those defined in \cref{sec:method}, namely
+\cref{eq:svgd-update,eq:strang-split-svgd,eq:mr-svgd,eq:adapt-mr-step}.
+\begin{remark}
+For the single-chain baselines, we use the standard stochastic-gradient update
+\begin{equation}
+x_{t+1}=x_t+\eta\nabla \log p(x_t)+\sqrt{2\eta}\,\xi_t,\qquad \xi_t\sim\mathcal{N}(0,I),
+\label{eq:sgld-update}
+\end{equation}
+for SGLD \cite{welling2011sgld}, and
+\begin{equation}
+v_{t+1}=\beta v_t+\eta\nabla \log p(x_t)+\sqrt{2\alpha\eta}\,\xi_t,\qquad x_{t+1}=x_t+v_{t+1},
+\label{eq:sghmc-update}
+\end{equation}
+for an SGHMC-style baseline \cite{chen2014sghmc}. Here $\eta$ is the step size, $\alpha$ is a
+friction/noise parameter, and $\beta\in(0,1)$ is momentum decay.
+\end{remark}
+For particle methods, we use $N=128$ particles; for single-chain methods, we
+compute metrics from a rolling window of recent iterates to obtain comparable
+finite-sample summaries. Alongside wall-clock time, we report gradient- and
+kernel-evaluation counts as hardware-agnostic measures of computational cost.
+
+All benchmarks use checkpointed evaluation at interval \texttt{save\_every} and
+an early-stopping rule triggered by persistent degradation of a designated
+monitor metric. We use KSD as the monitor for 50D Gaussian, 2D synthetic
+targets, Mixture2D, and BNN (\texttt{COMPUTE\_KSD=True} in the BNN setup),
+whereas UCI logistic regression uses NLL as the monitor because its default
+configuration sets \texttt{COMPUTE\_KSD=False}.
 
 \subsection{50D Gaussian}
 
-This high-dimensional benchmark stresses stability and scaling. We optionally
-whiten coordinates using the target covariance to stabilize drift and repulsion.
-We report moment errors ($\|\hat{\mu}-\mu\|_2$ and
-$\|\hat{\Sigma}-\Sigma\|_F$), ESS, KSD, and mean log probability.
+This benchmark stresses stability in a high-dimensional setting with anisotropic
+covariance structure. We run 1,000 iterations with checkpointing every 50 steps
+and a 5-seed ablation. Reported metrics are moment errors
+($\|\hat{\mu}-\mu\|_2$ and $\|\hat{\Sigma}-\Sigma\|_F$), ESS, KSD, and mean log
+probability.
 
 \begin{figure}[t]
   \centering
@@ -26,7 +59,11 @@ $\|\hat{\Sigma}-\Sigma\|_F$), ESS, KSD, and mean log probability.
 \begin{figure}[t]
   \centering
   \safeincludegraphics[width=0.9\linewidth]{../figures/50d/summary_metric_panels.png}
-  \caption{50D Gaussian: summary panels for moment errors, KSD, and ESS.}
+  \caption{50D Gaussian final-checkpoint summary across methods. The four panels
+  report $\|\hat{\mu}-\mu\|_2$, $\|\hat{\Sigma}-\Sigma\|_F$, KSD, and ESS,
+  respectively; markers show mean values across seeds and error bars indicate
+  one standard deviation. Lower is better for the first three metrics, whereas
+  higher is better for ESS.}
   \label{fig:gauss50_summary}
 \end{figure}
 
@@ -39,9 +76,12 @@ $\|\hat{\Sigma}-\Sigma\|_F$), ESS, KSD, and mean log probability.
 
 \subsection{2D synthetic targets}
 
-We evaluate banana, ring, squiggly, two-moons, and funnel targets. Metrics
-include KSD, ESS, mean log-probability, and grid-based $L_1$ error where
-available. Results are summarized with per-target plots and a summary table.
+We evaluate banana, ring, squiggly, two-moons, and funnel targets with 1,000
+iterations and checkpointing every 20 steps. Metrics include mean error, covariance
+error, ESS, KSD, mean log probability, and grid-based $L_1$ discrepancy against
+reference densities. The current draft keeps a placeholder for a consolidated
+multi-target figure; per-target panels are available under
+\texttt{figures/2d/<target>/}.
 
 \begin{figure}[t]
   \centering
@@ -52,73 +92,160 @@ available. Results are summarized with per-target plots and a summary table.
 
 \begin{table}[t]
   \centering
-  \fbox{\parbox{0.9\linewidth}{Placeholder for 2D summary table.}}
-  \caption{2D targets: placeholder summary table.}
+  \small
+  \begin{tabular}{lccrcc}
+    \toprule
+    Method & Med.\ $L_1$ & Med.\ KSD & Med.\ grad evals & Med.\ wall (s) & Pareto \\
+    \midrule
+    SVGD & 1.964 & 604.15 & 180 & 0.77 & Yes \\
+    Strang & 1.997 & 57.17 & 220 & 2.44 & Yes \\
+    MR & 1.999 & 68.27 & 180 & 3.11 & No \\
+    Adapt-MR & 1.999 & 1.94 & 1004 & 2.89 & Yes \\
+    \bottomrule
+  \end{tabular}
+  \caption{2D targets quality-cost summary across particle methods. Entries are
+  medians across targets of final-checkpoint metrics from current outputs
+  (\texttt{metrics/2d/*.csv}). Lower is better for $L_1$ and KSD. The Pareto flag
+  is computed on the (median KSD, median wall-time) plane. Method labels:
+  Strang = Strang-SVGD, MR = MR-SVGD, Adapt-MR = Adapt-MR-SVGD.}
   \label{tab:2d_summary}
 \end{table}
 
 \subsection{Mixture2D (mix8)}
 
-This benchmark emphasizes mode discovery and coverage. We report mode coverage,
-mode entropy, minimum mass per mode, KSD, and grid $L_1$ error. The summary
-panels highlight the importance of repulsion for maintaining coverage.
+This benchmark emphasizes mode discovery and mass allocation across modes. We
+run 1,000 iterations (checkpoint every 20) across 5 seeds. Metrics include mode
+coverage, mode entropy, imbalance, minimum mass per mode, ESS, KSD, mean log
+probability, and grid $L_1$ discrepancy. The summary panels directly visualize
+coverage/entropy-quality tradeoffs together with cost-aware curves.
 
 \begin{figure}[t]
   \centering
   \safeincludegraphics[width=0.9\linewidth]{../figures/mixture2d/mix8/mix8_summary_metric_panels.png}
-  \caption{Mixture2D: summary panels emphasizing mode coverage and entropy.}
+  \caption{Mixture2D (mix8) final-checkpoint summary across methods. The four
+  panels report mode coverage, mode entropy, minimum mass per mode, and KSD;
+  markers show mean values across seeds and error bars indicate one standard
+  deviation. Higher is better for coverage, entropy, and minimum mass per mode,
+  while lower is better for KSD.}
   \label{fig:mix8_summary}
 \end{figure}
 
 \subsection{UCI logistic regression}
 
-We benchmark on standard UCI datasets and report accuracy, NLL, ECE, ESS, and
-KSD (when computed). We summarize results with per-dataset summary panels
-without detailing each dataset individually \cite{dua2019uci}.
+We benchmark Bayesian logistic regression on breast\_cancer, ionosphere,
+spambase, and a5a, using a Gaussian prior on weights (as implemented in the
+benchmark script) and 5 seeds per dataset. We report test accuracy, NLL, ECE,
+ESS, and mean log probability; KSD is optional and disabled by default in this
+benchmark configuration. Results are summarized with per-dataset panels in
+\cref{fig:uci_summary} and a cross-dataset winner
+scorecard (particle methods only) in \cref{tab:uci_rank_summary}
+\cite{dua2019uci}.
 
 \begin{figure}[t]
   \centering
-  \begin{minipage}{0.48\linewidth}
+  \begin{subfigure}[t]{0.9\linewidth}
     \centering
     \safeincludegraphics[width=\linewidth]{../figures/uci/breast_cancer/breast_cancer_summary_metric_panels.png}
-  \end{minipage}
-  \begin{minipage}{0.48\linewidth}
+    \caption{breast\_cancer}
+    \label{fig:uci_breast_cancer}
+  \end{subfigure}
+
+  \vspace{0.25em}
+
+  \begin{subfigure}[t]{0.9\linewidth}
     \centering
     \safeincludegraphics[width=\linewidth]{../figures/uci/ionosphere/ionosphere_summary_metric_panels.png}
-  \end{minipage}
-
-  \begin{minipage}{0.48\linewidth}
-    \centering
-    \safeincludegraphics[width=\linewidth]{../figures/uci/spambase/spambase_summary_metric_panels.png}
-  \end{minipage}
-  \begin{minipage}{0.48\linewidth}
-    \centering
-    \safeincludegraphics[width=\linewidth]{../figures/uci/a5a/a5a_summary_metric_panels.png}
-  \end{minipage}
-  \caption{UCI logistic regression: summary panels per dataset.}
+    \caption{ionosphere}
+    \label{fig:uci_ionosphere}
+  \end{subfigure}
+  \caption{UCI logistic regression summary across datasets. Each subpanel reports
+  final-checkpoint mean across seeds with one standard deviation for test
+  accuracy, NLL, ECE, and ESS. Higher is better for accuracy and ESS; lower is
+  better for NLL and ECE. Remaining datasets are shown in the continued panel.}
   \label{fig:uci_summary}
 \end{figure}
 
+\begin{figure}[t]
+  \ContinuedFloat
+  \centering
+  \begin{subfigure}[t]{0.9\linewidth}
+    \centering
+    \safeincludegraphics[width=\linewidth]{../figures/uci/spambase/spambase_summary_metric_panels.png}
+    \caption{spambase}
+    \label{fig:uci_spambase}
+  \end{subfigure}
+
+  \vspace{0.25em}
+
+  \begin{subfigure}[t]{0.9\linewidth}
+    \centering
+    \safeincludegraphics[width=\linewidth]{../figures/uci/a5a/a5a_summary_metric_panels.png}
+    \caption{a5a}
+    \label{fig:uci_a5a}
+  \end{subfigure}
+  \caption[]{UCI logistic regression summary across datasets (continued).}
+\end{figure}
+
+\begin{table}[t]
+  \centering
+  \scriptsize
+  \setlength{\tabcolsep}{4pt}
+  \begin{tabular}{lcccc}
+    \toprule
+    Dataset & Acc$\uparrow$ winner & NLL$\downarrow$ winner & ECE$\downarrow$ winner & ESS$\uparrow$ winner \\
+    \midrule
+    breast\_cancer & MR (0.977) & Adapt-MR (0.075) & SVGD (0.594) & MR (124.0) \\
+    ionosphere & SVGD (0.891) & Adapt-MR (0.523) & SVGD (0.378) & MR (127.7) \\
+    spambase & SVGD (0.884) & Adapt-MR (0.412) & Adapt-MR (0.541) & SVGD/MR (128.0) \\
+    a5a & Strang (0.815) & MR (0.510) & Adapt-MR (0.612) & SVGD (123.2) \\
+    \bottomrule
+  \end{tabular}
+  \caption{UCI logistic regression winner scorecard (particle methods only:
+  SVGD, Strang-SVGD, MR-SVGD, Adapt-MR-SVGD). Each entry reports the best method
+  and its final-checkpoint mean value across seeds for the corresponding dataset
+  and metric; ties are shown with ``/''.}
+  \label{tab:uci_rank_summary}
+\end{table}
+
 \subsection{Bayesian neural network}
 
-We evaluate a 1-hidden-layer BNN on the same UCI datasets. We report accuracy,
-NLL, ECE, and ESS, and summarize results with panels analogous to the logistic
-regression benchmarks.
+We evaluate a one-hidden-layer BNN (hidden width 32) on breast\_cancer,
+ionosphere, and a5a, using a Gaussian prior and 5 seeds per dataset. We report
+test accuracy, NLL, ECE, ESS, KSD, and mean log probability, and summarize
+results with panels analogous to the logistic-regression benchmark.
 
 \begin{figure}[t]
   \centering
-  \begin{minipage}{0.32\linewidth}
+  \begin{subfigure}[t]{0.9\linewidth}
     \centering
     \safeincludegraphics[width=\linewidth]{../figures/bnn/breast_cancer/breast_cancer_summary_metric_panels.png}
-  \end{minipage}
-  \begin{minipage}{0.32\linewidth}
+    \caption{breast\_cancer}
+    \label{fig:bnn_breast_cancer}
+  \end{subfigure}
+
+  \vspace{0.25em}
+
+  \begin{subfigure}[t]{0.9\linewidth}
     \centering
     \safeincludegraphics[width=\linewidth]{../figures/bnn/ionosphere/ionosphere_summary_metric_panels.png}
-  \end{minipage}
-  \begin{minipage}{0.32\linewidth}
+    \caption{ionosphere}
+    \label{fig:bnn_ionosphere}
+  \end{subfigure}
+  \caption{BNN summary across datasets. Each subpanel reports final-checkpoint
+  mean across seeds with one standard deviation for test accuracy, NLL, ECE,
+  and ESS. Higher is better for accuracy and ESS; lower is better for NLL and
+  ECE. The remaining dataset appears in the continued panel.}
+  \label{fig:bnn_summary}
+\end{figure}
+
+\begin{figure}[t]
+  \ContinuedFloat
+  \centering
+  \begin{subfigure}[t]{0.9\linewidth}
     \centering
     \safeincludegraphics[width=\linewidth]{../figures/bnn/a5a/a5a_summary_metric_panels.png}
-  \end{minipage}
-  \caption{BNN: summary panels (accuracy, NLL, ECE, ESS).}
-  \label{fig:bnn_summary}
+    \caption{a5a}
+    \label{fig:bnn_a5a}
+  \end{subfigure}
+  \caption[]{BNN summary across datasets (continued).}
 \end{figure}

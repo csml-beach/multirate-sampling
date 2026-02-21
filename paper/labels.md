@@ -16,6 +16,8 @@ This file tracks all \label{} keys used in equations, figures, and tables in the
 - eq:adapt-mr-step — Adapt-MR-SVGD macro-step with adaptive $m$
 - eq:adapt-mr-error — Adapt-MR-SVGD step-doubling error indicator
 - eq:adapt-mr-m — Adapt-MR-SVGD drift substep selection rule
+- eq:sgld-update — SGLD baseline update used in experimental protocol
+- eq:sghmc-update — SGHMC-style baseline update used in experimental protocol
 
 ## Figures
 
@@ -24,12 +26,20 @@ This file tracks all \label{} keys used in equations, figures, and tables in the
 - fig:gauss50_walltime — 50D Gaussian wall-time overview
 - fig:2d_placeholder — 2D targets placeholder main figure
 - fig:mix8_summary — Mixture2D (mix8) summary metric panels
-- fig:uci_summary — UCI logistic regression summary panels
+- fig:uci_summary — UCI logistic regression summary panels (all datasets)
+- fig:uci_breast_cancer — UCI breast\_cancer subpanel
+- fig:uci_ionosphere — UCI ionosphere subpanel
+- fig:uci_spambase — UCI spambase subpanel
+- fig:uci_a5a — UCI a5a subpanel
 - fig:bnn_summary — Bayesian neural network (BNN) summary panels
+- fig:bnn_breast_cancer — BNN breast\_cancer subpanel
+- fig:bnn_ionosphere — BNN ionosphere subpanel
+- fig:bnn_a5a — BNN a5a subpanel
 
 ## Tables
 
-- tab:2d_summary — 2D targets placeholder summary table
+- tab:2d_summary — 2D targets quality-cost summary table (median final metrics)
+- tab:uci_rank_summary — UCI logistic-regression winner scorecard by dataset/metric (particle methods)
 
 ## Algorithms
 
