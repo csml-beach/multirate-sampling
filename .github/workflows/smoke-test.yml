@@ -41,27 +41,27 @@ jobs:
         run: |
           test -s metrics/hlr/longtail.csv
           python - <<'PY'
-import csv
-from pathlib import Path
-p = Path("metrics/hlr/longtail.csv")
-with p.open() as f:
-    rows = list(csv.DictReader(f))
-if not rows:
-    raise SystemExit("smoke test failed: no rows written")
-methods = {r["method"] for r in rows}
-required = {
-    "multirate_svgd",
-    "adaptive_multirate_svgd",
-    "vanilla_svgd",
-    "strang_svgd",
-    "sgld",
-    "sghmc",
-}
-missing = sorted(required - methods)
-if missing:
-    raise SystemExit(f"smoke test failed: missing methods {missing}")
-print(f"smoke test ok: {len(rows)} rows, methods={sorted(methods)}")
-PY
+          import csv
+          from pathlib import Path
+          p = Path("metrics/hlr/longtail.csv")
+          with p.open() as f:
+              rows = list(csv.DictReader(f))
+          if not rows:
+              raise SystemExit("smoke test failed: no rows written")
+          methods = {r["method"] for r in rows}
+          required = {
+              "multirate_svgd",
+              "adaptive_multirate_svgd",
+              "vanilla_svgd",
+              "strang_svgd",
+              "sgld",
+              "sghmc",
+          }
+          missing = sorted(required - methods)
+          if missing:
+              raise SystemExit(f"smoke test failed: missing methods {missing}")
+          print(f"smoke test ok: {len(rows)} rows, methods={sorted(methods)}")
+          PY
 
       - name: Upload smoke metrics
         uses: actions/upload-artifact@v4
