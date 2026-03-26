@@ -1,0 +1,9 @@
+jax[cpu]>=0.4
+optax>=0.2
+numpy>=1.24
+pandas>=2.0
+matplotlib>=3.7
+seaborn>=0.12
+tqdm>=4.65
+statsmodels>=0.14
+scipy>=1.10

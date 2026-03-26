@@ -1,14 +1,30 @@
 \section{Conclusions}
 \label{sec:conclusions}
 
-We presented multirate SVGD variants that split drift and repulsion to improve
-stability and efficiency on stiff targets. Across synthetic and real-world
-benchmarks, multirate splitting and adaptive drift substepping consistently
-improve robustness relative to vanilla SVGD, while remaining competitive with
-SGLD and SGHMC. The results highlight the importance of separating time scales
-in particle interactions, especially in high dimensions and multimodal
-settings.
+This work reframes SVGD as a numerically split interacting-particle flow in
+which attraction to high-density regions and diversity-preserving repulsion are
+treated as distinct computational components. From this viewpoint, multirate
+integration is not only an efficiency heuristic but a practical mechanism for
+improving stability in posterior geometries where these components evolve at
+different effective scales.
 
-Future work includes more principled adaptivity for repulsion frequency,
-approximate kernel interactions for large $N$, and tighter links to classical
-multirate stability theory for particle-based Bayesian inference.
+Across a broad benchmark suite, the main empirical pattern is that multirate
+formulations make SVGD behavior more reliable under difficult geometry,
+especially in high-dimensional anisotropic settings and hierarchical models.
+Fixed multirate schedules provide a strong robustness baseline, while adaptive
+drift resolution offers additional flexibility when local stiffness changes
+along the trajectory. At the same time, results indicate that no single variant
+dominates every metric and every regime, reinforcing the importance of
+evaluating quality and cost jointly rather than through a single summary
+statistic.
+
+Several limitations remain. Current adaptivity is centered on drift resolution,
+while repulsion frequency is still controlled by simple schedules; ESS remains a
+univariate proxy; and dense kernel interactions continue to constrain scaling at
+large particle counts. These observations suggest clear next steps: tighter
+adaptive controllers that coordinate drift and repulsion updates, approximate or
+structured kernel computations for large-$N$ regimes, and stronger theoretical
+links between multirate stability analysis and particle-based Bayesian
+inference guarantees. Together, these directions can move multirate SVGD from a
+robust empirical strategy toward a more principled and scalable foundation for
+modern Bayesian computation.

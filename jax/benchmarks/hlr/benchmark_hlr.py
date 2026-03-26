@@ -8,6 +8,7 @@ import sys
 
 import jax
 import jax.numpy as jnp
+import numpy as np
 
 JAX_DIR = Path(__file__).resolve().parents[2]
 if str(JAX_DIR) not in sys.path:
@@ -32,9 +33,12 @@ SAVE_EVERY = 20
 CHAIN_WINDOW = 200
 SEEDS = range(3)
 
-LR_SVGD = 3e-3
-LR_SGLD = 1e-3
-LR_SGHMC = 1e-3
+LR_MR = 3e-3
+LR_ADAPT = 3e-3
+LR_VANILLA = 3e-4
+LR_STRANG = 3e-4
+LR_SGLD = 3e-4
+LR_SGHMC = 3e-4
 BW_SCALE = 0.1
 ERR_TOL = 1e-2
 
@@ -50,6 +54,7 @@ EARLY_STOP = True
 EARLY_STOP_TOL = 0.02
 EARLY_STOP_PATIENCE = 8
 EARLY_STOP_MIN_CHECKS = 8
+EARLY_STOP_NONFINITE_PATIENCE = 2
 
 OUT_DIR = Path("metrics") / "hlr"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -112,6 +117,23 @@ def _predictive_probs(samples, X, g, n_features, n_groups):
     return jnp.mean(probs, axis=0)
 
 
+def _safe_ess(values):
+    x = np.asarray(values, dtype=np.float64)
+    if x.size < 3:
+        return float("nan")
+    if not np.all(np.isfinite(x)):
+        return float("nan")
+    if float(np.std(x)) < 1e-12:
+        return float("nan")
+    try:
+        val = float(ess_1d(x))
+        if not np.isfinite(val):
+            return float("nan")
+        return val
+    except Exception:
+        return float("nan")
+
+
 def _parse_args():
     parser = argparse.ArgumentParser(description="Run synthetic hierarchical logistic-regression benchmarks.")
     parser.add_argument(
@@ -130,6 +152,12 @@ def _parse_args():
     parser.add_argument("--iters", type=int, default=N_ITER)
     parser.add_argument("--save-every", type=int, default=SAVE_EVERY)
     parser.add_argument("--particles", type=int, default=N_PARTICLES)
+    parser.add_argument("--lr-mr", type=float, default=LR_MR)
+    parser.add_argument("--lr-adapt", type=float, default=LR_ADAPT)
+    parser.add_argument("--lr-vanilla", type=float, default=LR_VANILLA)
+    parser.add_argument("--lr-strang", type=float, default=LR_STRANG)
+    parser.add_argument("--lr-sgld", type=float, default=LR_SGLD)
+    parser.add_argument("--lr-sghmc", type=float, default=LR_SGHMC)
     return parser.parse_args()
 
 
@@ -207,13 +235,13 @@ def main():
                 samplers = {
                     "multirate_svgd": (
                         init_particles,
-                        make_multirate_svgd_step(logp, base_dt=LR_SVGD, m=4, L_inv=None, bw_scale=BW_SCALE),
+                        make_multirate_svgd_step(logp, base_dt=args.lr_mr, m=4, L_inv=None, bw_scale=BW_SCALE),
                     ),
                     "adaptive_multirate_svgd": (
                         init_particles,
                         make_adaptive_multirate_svgd_step(
                             logp,
-                            base_dt=LR_SVGD,
+                            base_dt=args.lr_adapt,
                             m_min=1,
                             m_max=8,
                             err_tol=ERR_TOL,
@@ -223,17 +251,17 @@ def main():
                     ),
                     "vanilla_svgd": (
                         init_particles,
-                        make_svgd_step(logp, LR_SVGD, bw_scale=BW_SCALE),
+                        make_svgd_step(logp, args.lr_vanilla, bw_scale=BW_SCALE),
                     ),
                     "strang_svgd": (
                         init_particles,
-                        make_strang_svgd_step(logp, LR_SVGD, bw_scale=BW_SCALE),
+                        make_strang_svgd_step(logp, args.lr_strang, bw_scale=BW_SCALE),
                     ),
                 }
 
-                sgld_init_fn, sgld_step_fn = make_sgld_step(logp, LR_SGLD)
+                sgld_init_fn, sgld_step_fn = make_sgld_step(logp, args.lr_sgld)
                 samplers["sgld"] = (sgld_init_fn(x0_chain), sgld_step_fn)
-                sghmc_init_fn, sghmc_step_fn = make_sghmc_step(logp, LR_SGHMC)
+                sghmc_init_fn, sghmc_step_fn = make_sghmc_step(logp, args.lr_sghmc)
                 samplers["sghmc"] = (sghmc_init_fn(x0_chain), sghmc_step_fn)
 
                 chain_buffers = {}
@@ -252,6 +280,7 @@ def main():
                     last_iter = None
                     bad_checks = 0
                     check_count = 0
+                    nonfinite_streak = 0
 
                     if name in {"sgld", "sghmc"}:
                         chain_buffers[name] = deque(maxlen=CHAIN_WINDOW)
@@ -275,7 +304,8 @@ def main():
                             acc_val = accuracy(y_test, p_pred)
                             nll_val = nll(y_test, p_pred)
                             ece_val = ece(y_test, p_pred)
-                            ess_val = ess_1d(samples[:, 0] if samples.ndim == 2 else samples)
+                            ess_series = samples[:, 0] if samples.ndim == 2 else samples
+                            ess_val = _safe_ess(ess_series)
                             ksd_val = ksd_rbf(samples, score_fn) if COMPUTE_KSD else float("nan")
                             mlp_val = mean_log_prob(samples, logp)
 
@@ -303,19 +333,30 @@ def main():
                                 check_count += 1
                                 metric_val = nll_val
                                 if not math.isfinite(metric_val):
+                                    nonfinite_streak += 1
                                     bad_checks += 1
                                 elif best_nll is None or metric_val < best_nll:
                                     best_nll = metric_val
                                     best_row = row[:-1] + [1]
                                     best_iter = it
                                     bad_checks = 0
+                                    nonfinite_streak = 0
                                 elif check_count >= EARLY_STOP_MIN_CHECKS and metric_val > best_nll * (1.0 + EARLY_STOP_TOL):
                                     bad_checks += 1
+                                    nonfinite_streak = 0
                                 else:
                                     bad_checks = 0
+                                    nonfinite_streak = 0
+
+                                if nonfinite_streak >= EARLY_STOP_NONFINITE_PATIENCE:
+                                    print(
+                                        f"early stop: hlr:{group_mode} | seed {seed} | {name} at iter {it} "
+                                        f"(non-finite nll for {nonfinite_streak} checkpoints)"
+                                    )
+                                    break
 
                                 if check_count >= EARLY_STOP_MIN_CHECKS and bad_checks >= EARLY_STOP_PATIENCE:
-                                    best_str = f"{best_nll:.3g}" if best_nll is not None else "nan"
+                                    best_str = f"{best_nll:.3g}" if best_nll is not None else "unavailable"
                                     print(
                                         f"early stop: hlr:{group_mode} | seed {seed} | {name} at iter {it} "
                                         f"(nll {metric_val:.3g} > best {best_str})"

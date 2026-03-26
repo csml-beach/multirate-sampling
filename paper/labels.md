@@ -18,6 +18,14 @@ This file tracks all \label{} keys used in equations, figures, and tables in the
 - eq:adapt-mr-m — Adapt-MR-SVGD drift substep selection rule
 - eq:sgld-update — SGLD baseline update used in experimental protocol
 - eq:sghmc-update — SGHMC-style baseline update used in experimental protocol
+- eq:ksd-stein-kernel — Score-Stein kernel used in the KSD definition
+- eq:ksd-metric — Empirical kernel Stein discrepancy used for evaluation
+- eq:mean-logp-metric — Mean log-density (log-score) evaluation metric
+- eq:ess-autocorr — Autocovariance/autocorrelation definitions for ESS
+- eq:ess-metric — Effective sample size (ESS) estimator with truncated autocorrelation sum
+- eq:hlr-likelihood — Hierarchical logistic-regression likelihood for grouped binary outcomes
+- eq:hlr-priors — Non-centered hierarchical priors for global and group-level effects
+- eq:hlr-posterior — Posterior density (up to normalization) for the large-scale HLR benchmark
 
 ## Figures
 
@@ -40,6 +48,8 @@ This file tracks all \label{} keys used in equations, figures, and tables in the
 
 - tab:2d_summary — 2D targets quality-cost summary table (median final metrics)
 - tab:uci_rank_summary — UCI logistic-regression winner scorecard by dataset/metric (particle methods)
+- tab:hlr_longtail_summary — HLR long-tail quality-cost summary table (best finite-NLL checkpoints)
+- tab:hlr_uniform_summary — HLR uniform-group quality-cost summary table (best finite-NLL checkpoints)
 
 ## Algorithms
 
