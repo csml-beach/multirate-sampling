@@ -6,7 +6,7 @@ import numpy as np
 
 
 _CACHE_DIR = os.path.join(os.path.dirname(__file__), "targets_2d_cache")
-_CACHE_VERSION = "v2"
+_CACHE_VERSION = "v3"
 
 
 def _as_batch(x):
@@ -35,19 +35,23 @@ def _squiggly_logp(x, amp=1.0, freq=3.0, sigma_x=2.0, sigma_y=0.3):
     return -0.5 * (x1**2) / (sigma_x**2) - 0.5 * ((x2 - center) ** 2) / (sigma_y**2)
 
 
-def _two_moons_logp(x, r=2.0, sigma=0.2, shift=1.0, offset=-0.5, sigma_x=2.0):
+def _two_moons_logp(x, r=2.0, sigma=0.2, shift=1.0, offset=-0.5, gate_k=8.0):
     x = _as_batch(x)
     x1, x2 = x[:, 0], x[:, 1]
 
-    rad1 = jnp.sqrt(jnp.maximum(r**2 - x1**2, 0.0))
-    rad2 = jnp.sqrt(jnp.maximum(r**2 - (x1 - shift) ** 2, 0.0))
-    y1 = rad1
-    y2 = -rad2 + offset
+    # Two half-ring components with smooth half-plane gates (canonical moons).
+    rad1 = jnp.sqrt(x1**2 + x2**2 + 1e-12)
+    u2 = x1 - shift
+    v2 = x2 - offset
+    rad2 = jnp.sqrt(u2**2 + v2**2 + 1e-12)
 
-    l1 = -0.5 * ((x2 - y1) ** 2) / (sigma**2)
-    l2 = -0.5 * ((x2 - y2) ** 2) / (sigma**2)
-    envelope = -0.5 * ((x1 - 0.5 * shift) ** 2) / (sigma_x**2)
-    return jnp.logaddexp(l1, l2) + envelope
+    l1 = -0.5 * ((rad1 - r) ** 2) / (sigma**2)
+    l2 = -0.5 * ((rad2 - r) ** 2) / (sigma**2)
+
+    # log(sigmoid(gate_k * x2)) for upper half, log(sigmoid(-gate_k * v2)) for lower half.
+    l1 = l1 - jax.nn.softplus(-gate_k * x2)
+    l2 = l2 - jax.nn.softplus(gate_k * v2)
+    return jnp.logaddexp(l1, l2)
 
 
 def _funnel_logp(x, sigma_v=3.0):

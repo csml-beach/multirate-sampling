@@ -120,16 +120,46 @@ def _resolve_cmap(name):
     return sns.color_palette(name, as_cmap=True)
 
 
-def _make_background(ax, logp_fn, bounds, grid=200, cmap="mako"):
+def _make_levels(logp, n_levels, level_span, level_focus):
+    vmax = float(np.max(logp))
+    vmin = vmax - float(level_span)
+    u = np.linspace(0.0, 1.0, int(n_levels))
+    levels = vmin + (u ** float(level_focus)) * (vmax - vmin)
+    return levels
+
+
+def _resolve_plot_bounds(default_bounds, plot_xmin, plot_xmax, plot_ymin, plot_ymax):
+    values = (plot_xmin, plot_xmax, plot_ymin, plot_ymax)
+    if all(v is None for v in values):
+        return default_bounds
+    if any(v is None for v in values):
+        raise ValueError("Specify all of --plot-xmin/--plot-xmax/--plot-ymin/--plot-ymax together.")
+    return ((float(plot_xmin), float(plot_xmax)), (float(plot_ymin), float(plot_ymax)))
+
+
+def _make_background(
+    ax,
+    logp_fn,
+    bounds,
+    grid=200,
+    cmap="mako",
+    contour_style="filled",
+    n_levels=24,
+    level_span=10.0,
+    level_focus=1.0,
+):
     xmin, xmax, ymin, ymax = _split_bounds(bounds)
     xs = np.linspace(xmin, xmax, grid)
     ys = np.linspace(ymin, ymax, grid)
     xx, yy = np.meshgrid(xs, ys, indexing="xy")
     pts = np.stack([xx.ravel(), yy.ravel()], axis=1)
     logp = np.asarray(logp_fn(jnp.asarray(pts))).reshape(grid, grid)
-    levels = np.linspace(logp.max() - 10, logp.max(), 24)
+    levels = _make_levels(logp, n_levels=n_levels, level_span=level_span, level_focus=level_focus)
     cmap = _resolve_cmap(cmap)
-    ax.contourf(xx, yy, logp, levels=levels, cmap=cmap, alpha=0.95)
+    if contour_style == "lines":
+        ax.contour(xx, yy, logp, levels=levels, cmap=cmap, linewidths=0.7, alpha=0.95)
+    else:
+        ax.contourf(xx, yy, logp, levels=levels, cmap=cmap, alpha=0.95)
     ax.set_xlim(xmin, xmax)
     ax.set_ylim(ymin, ymax)
     ax.set_aspect("equal", adjustable="box")
@@ -150,9 +180,26 @@ def run_animation(
     err_tol,
     m_max,
     bw_scale,
+    plot_xmin,
+    plot_xmax,
+    plot_ymin,
+    plot_ymax,
+    init_bounds,
+    contour_style,
+    n_levels,
+    level_span,
+    level_focus,
 ):
-    logp, _score_fn, _mean_ref, _cov_ref, bounds = get_target(target)
-    xmin, xmax, ymin, ymax = _split_bounds(bounds)
+    logp, _score_fn, _mean_ref, _cov_ref, target_bounds = get_target(target)
+    plot_bounds = _resolve_plot_bounds(
+        target_bounds,
+        plot_xmin=plot_xmin,
+        plot_xmax=plot_xmax,
+        plot_ymin=plot_ymin,
+        plot_ymax=plot_ymax,
+    )
+    active_init_bounds = plot_bounds if init_bounds == "plot" else target_bounds
+    xmin, xmax, ymin, ymax = _split_bounds(active_init_bounds)
     init_min = jnp.asarray([xmin, ymin], dtype=jnp.float32)
     init_max = jnp.asarray([xmax, ymax], dtype=jnp.float32)
     key = jax.random.PRNGKey(seed)
@@ -184,7 +231,17 @@ def run_animation(
             frames.append(np.asarray(state))
 
     fig, ax = plt.subplots(figsize=(6, 6))
-    _make_background(ax, logp, bounds, grid=grid, cmap=cmap)
+    _make_background(
+        ax,
+        logp,
+        plot_bounds,
+        grid=grid,
+        cmap=cmap,
+        contour_style=contour_style,
+        n_levels=n_levels,
+        level_span=level_span,
+        level_focus=level_focus,
+    )
 
     if is_chain:
         scatter = ax.scatter([], [], s=70, color="red", edgecolor="k", linewidth=0.4)
@@ -225,6 +282,15 @@ def main():
     parser.add_argument("--seed", type=int, default=0, help="PRNG seed.")
     parser.add_argument("--fps", type=int, default=20, help="GIF frames per second.")
     parser.add_argument("--grid", type=int, default=200, help="Contour grid resolution.")
+    parser.add_argument("--contour-style", choices=("filled", "lines"), default="filled", help="Background contour style.")
+    parser.add_argument("--n-levels", type=int, default=24, help="Number of contour levels.")
+    parser.add_argument("--level-span", type=float, default=10.0, help="Log-density span below max used for contours.")
+    parser.add_argument("--level-focus", type=float, default=1.0, help="Contour spacing in log-density space; <1 shifts levels toward high density.")
+    parser.add_argument("--plot-xmin", type=float, default=None, help="Optional plotting x-min override.")
+    parser.add_argument("--plot-xmax", type=float, default=None, help="Optional plotting x-max override.")
+    parser.add_argument("--plot-ymin", type=float, default=None, help="Optional plotting y-min override.")
+    parser.add_argument("--plot-ymax", type=float, default=None, help="Optional plotting y-max override.")
+    parser.add_argument("--init-bounds", choices=("target", "plot"), default="target", help="Initialization bounds source when plot bounds are overridden.")
     parser.add_argument("--lr-svgd", type=float, default=2e-4, help="Step size for SVGD methods.")
     parser.add_argument("--err-tol", type=float, default=1e-2, help="Error tolerance for adaptive multirate.")
     parser.add_argument("--m-max", type=int, default=16, help="Max drift substeps for adaptive multirate.")
@@ -235,6 +301,10 @@ def main():
         help="Output GIF path.",
     )
     args = parser.parse_args()
+    if args.level_span <= 0.0:
+        raise ValueError("--level-span must be > 0.")
+    if args.level_focus <= 0.0:
+        raise ValueError("--level-focus must be > 0.")
 
     targets = list_targets() if args.target == "all" else [args.target]
     for target in targets:
@@ -256,6 +326,15 @@ def main():
             err_tol=args.err_tol,
             m_max=args.m_max,
             bw_scale=args.bw_scale,
+            plot_xmin=args.plot_xmin,
+            plot_xmax=args.plot_xmax,
+            plot_ymin=args.plot_ymin,
+            plot_ymax=args.plot_ymax,
+            init_bounds=args.init_bounds,
+            contour_style=args.contour_style,
+            n_levels=args.n_levels,
+            level_span=args.level_span,
+            level_focus=args.level_focus,
         )
 
 

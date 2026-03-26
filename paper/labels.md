@@ -32,9 +32,11 @@ This file tracks all \label{} keys used in equations, figures, and tables in the
 - fig:gauss50_pareto — 50D Gaussian Pareto plot (moment-error space)
 - fig:gauss50_summary — 50D Gaussian summary metric panels
 - fig:gauss50_walltime — 50D Gaussian wall-time overview
-- fig:2d_demo_panel — 2D target visualization panel (banana and squiggly demos)
+- fig:2d_demo_panel — 2D target visualization panel (banana, squiggly, ring, two-moons demos)
 - fig:2d_demo_banana — Banana demo subpanel (initial vs short-run final particles)
 - fig:2d_demo_squiggly — Squiggly demo subpanel (initial vs short-run final particles)
+- fig:2d_demo_ring — Ring demo subpanel (initial vs short-run final particles)
+- fig:2d_demo_two_moons — Two-moons demo subpanel (initial vs short-run final particles)
 - fig:mix8_summary — Mixture2D (mix8) summary metric panels
 - fig:uci_summary — UCI logistic regression summary panels (all datasets)
 - fig:uci_breast_cancer — UCI breast\_cancer subpanel
