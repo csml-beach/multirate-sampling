@@ -35,15 +35,52 @@ from samplers import (
 )
 
 
-def _build_sampler(name, logp, n_particles, lr_svgd, lr_sgld, lr_sghmc, err_tol, m_max, bw_scale, key):
+def _split_bounds(bounds):
+    if (
+        isinstance(bounds, tuple)
+        and len(bounds) == 2
+        and np.isscalar(bounds[0])
+        and np.isscalar(bounds[1])
+    ):
+        xmin, xmax = float(bounds[0]), float(bounds[1])
+        ymin, ymax = xmin, xmax
+        return xmin, xmax, ymin, ymax
+    if (
+        isinstance(bounds, tuple)
+        and len(bounds) == 2
+        and isinstance(bounds[0], tuple)
+        and isinstance(bounds[1], tuple)
+        and len(bounds[0]) == 2
+        and len(bounds[1]) == 2
+    ):
+        xmin, xmax = float(bounds[0][0]), float(bounds[0][1])
+        ymin, ymax = float(bounds[1][0]), float(bounds[1][1])
+        return xmin, xmax, ymin, ymax
+    raise ValueError(f"Invalid bounds format: {bounds!r}")
+
+
+def _build_sampler(
+    name,
+    logp,
+    n_particles,
+    lr_svgd,
+    lr_sgld,
+    lr_sghmc,
+    err_tol,
+    m_max,
+    bw_scale,
+    key,
+    init_min,
+    init_max,
+):
     if name == "vanilla_svgd":
-        state = jax.random.uniform(key, (n_particles, 2), minval=-4.0, maxval=4.0)
+        state = jax.random.uniform(key, (n_particles, 2), minval=init_min, maxval=init_max)
         return state, make_svgd_step(logp, lr_svgd, bw_scale=bw_scale), False
     if name == "strang_svgd":
-        state = jax.random.uniform(key, (n_particles, 2), minval=-4.0, maxval=4.0)
+        state = jax.random.uniform(key, (n_particles, 2), minval=init_min, maxval=init_max)
         return state, make_strang_svgd_step(logp, lr_svgd, bw_scale=bw_scale), False
     if name == "multirate_svgd":
-        state = jax.random.uniform(key, (n_particles, 2), minval=-4.0, maxval=4.0)
+        state = jax.random.uniform(key, (n_particles, 2), minval=init_min, maxval=init_max)
         return state, make_multirate_svgd_step(
             logp,
             base_dt=lr_svgd,
@@ -51,7 +88,7 @@ def _build_sampler(name, logp, n_particles, lr_svgd, lr_sgld, lr_sghmc, err_tol,
             bw_scale=bw_scale,
         ), False
     if name == "adaptive_multirate_svgd":
-        state = jax.random.uniform(key, (n_particles, 2), minval=-4.0, maxval=4.0)
+        state = jax.random.uniform(key, (n_particles, 2), minval=init_min, maxval=init_max)
         step = make_adaptive_multirate_svgd_step(
             logp,
             base_dt=lr_svgd,
@@ -63,11 +100,11 @@ def _build_sampler(name, logp, n_particles, lr_svgd, lr_sgld, lr_sghmc, err_tol,
         return state, step, False
     if name == "sgld":
         init_fn, step_fn = make_sgld_step(logp, lr_sgld)
-        x0 = jax.random.uniform(key, (2,), minval=-4.0, maxval=4.0)
+        x0 = jax.random.uniform(key, (2,), minval=init_min, maxval=init_max)
         return init_fn(x0), step_fn, True
     if name == "sghmc":
         init_fn, step_fn = make_sghmc_step(logp, lr_sghmc)
-        x0 = jax.random.uniform(key, (2,), minval=-4.0, maxval=4.0)
+        x0 = jax.random.uniform(key, (2,), minval=init_min, maxval=init_max)
         return init_fn(x0), step_fn, True
     raise ValueError(f"Unknown sampler '{name}'")
 
@@ -84,9 +121,9 @@ def _resolve_cmap(name):
 
 
 def _make_background(ax, logp_fn, bounds, grid=200, cmap="mako"):
-    xmin, xmax = bounds
+    xmin, xmax, ymin, ymax = _split_bounds(bounds)
     xs = np.linspace(xmin, xmax, grid)
-    ys = np.linspace(xmin, xmax, grid)
+    ys = np.linspace(ymin, ymax, grid)
     xx, yy = np.meshgrid(xs, ys, indexing="xy")
     pts = np.stack([xx.ravel(), yy.ravel()], axis=1)
     logp = np.asarray(logp_fn(jnp.asarray(pts))).reshape(grid, grid)
@@ -94,7 +131,7 @@ def _make_background(ax, logp_fn, bounds, grid=200, cmap="mako"):
     cmap = _resolve_cmap(cmap)
     ax.contourf(xx, yy, logp, levels=levels, cmap=cmap, alpha=0.95)
     ax.set_xlim(xmin, xmax)
-    ax.set_ylim(xmin, xmax)
+    ax.set_ylim(ymin, ymax)
     ax.set_aspect("equal", adjustable="box")
 
 
@@ -115,10 +152,24 @@ def run_animation(
     bw_scale,
 ):
     logp, _score_fn, _mean_ref, _cov_ref, bounds = get_target(target)
+    xmin, xmax, ymin, ymax = _split_bounds(bounds)
+    init_min = jnp.asarray([xmin, ymin], dtype=jnp.float32)
+    init_max = jnp.asarray([xmax, ymax], dtype=jnp.float32)
     key = jax.random.PRNGKey(seed)
     key, init_key = jax.random.split(key)
     state, step_fn, is_chain = _build_sampler(
-        sampler, logp, n_particles, lr_svgd, 1e-4, 1e-4, err_tol, m_max, bw_scale, init_key
+        sampler,
+        logp,
+        n_particles,
+        lr_svgd,
+        1e-4,
+        1e-4,
+        err_tol,
+        m_max,
+        bw_scale,
+        init_key,
+        init_min,
+        init_max,
     )
 
     frames = []

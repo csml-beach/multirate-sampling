@@ -6,6 +6,7 @@ import numpy as np
 
 
 _CACHE_DIR = os.path.join(os.path.dirname(__file__), "targets_2d_cache")
+_CACHE_VERSION = "v2"
 
 
 def _as_batch(x):
@@ -13,11 +14,12 @@ def _as_batch(x):
     return x[None, :] if x.ndim == 1 else x
 
 
-def _banana_logp(x, b=0.1, sigma=1.0):
+def _banana_logp(x, b=0.03, v=100.0, sigma_y=1.0):
     x = _as_batch(x)
     x1, x2 = x[:, 0], x[:, 1]
-    y = x2 + b * (x1**2 - 1.0)
-    return -0.5 * (x1**2 + y**2) / (sigma**2)
+    # Canonical twisted-Gaussian banana: x1 has variance v and x2 is warped by b*x1^2.
+    y = x2 + b * (x1**2 - v)
+    return -0.5 * (x1**2 / v + (y**2) / (sigma_y**2))
 
 
 def _ring_logp(x, r0=2.5, sigma=0.3):
@@ -58,7 +60,7 @@ def _funnel_logp(x, sigma_v=3.0):
 _TARGETS = {
     "banana": {
         "logp": _banana_logp,
-        "bounds": (-6.0, 6.0),
+        "bounds": ((-20.0, 20.0), (-12.0, 8.0)),
     },
     "ring": {
         "logp": _ring_logp,
@@ -79,14 +81,40 @@ _TARGETS = {
 }
 
 
+def _split_bounds(bounds):
+    if (
+        isinstance(bounds, tuple)
+        and len(bounds) == 2
+        and np.isscalar(bounds[0])
+        and np.isscalar(bounds[1])
+    ):
+        xmin, xmax = float(bounds[0]), float(bounds[1])
+        ymin, ymax = xmin, xmax
+        return xmin, xmax, ymin, ymax
+
+    if (
+        isinstance(bounds, tuple)
+        and len(bounds) == 2
+        and isinstance(bounds[0], tuple)
+        and isinstance(bounds[1], tuple)
+        and len(bounds[0]) == 2
+        and len(bounds[1]) == 2
+    ):
+        xmin, xmax = float(bounds[0][0]), float(bounds[0][1])
+        ymin, ymax = float(bounds[1][0]), float(bounds[1][1])
+        return xmin, xmax, ymin, ymax
+
+    raise ValueError(f"Invalid bounds format: {bounds!r}")
+
+
 def list_targets():
     return sorted(_TARGETS.keys())
 
 
 def _estimate_reference_moments(logp_fn, bounds, grid_size=400):
-    xmin, xmax = bounds
+    xmin, xmax, ymin, ymax = _split_bounds(bounds)
     xs = np.linspace(xmin, xmax, grid_size)
-    ys = np.linspace(xmin, xmax, grid_size)
+    ys = np.linspace(ymin, ymax, grid_size)
     xx, yy = np.meshgrid(xs, ys, indexing="xy")
     pts = np.stack([xx.ravel(), yy.ravel()], axis=1)
 
@@ -111,7 +139,7 @@ def get_target(name, grid_size=400, cache=True):
     logp_fn = spec["logp"]
     bounds = spec["bounds"]
 
-    cache_path = os.path.join(_CACHE_DIR, f"{name}_grid{grid_size}.npz")
+    cache_path = os.path.join(_CACHE_DIR, f"{name}_grid{grid_size}_{_CACHE_VERSION}.npz")
     if cache and os.path.exists(cache_path):
         data = np.load(cache_path)
         mean = data["mean"]

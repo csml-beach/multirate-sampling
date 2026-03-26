@@ -186,15 +186,31 @@ probability.
 We evaluate banana, ring, squiggly, two-moons, and funnel targets with 1,000
 iterations and checkpointing every 20 steps. Metrics include mean error, covariance
 error, ESS, KSD, mean log probability, and grid-based $L_1$ discrepancy against
-reference densities. The current draft keeps a placeholder for a consolidated
-multi-target figure; per-target panels are available under
-\texttt{figures/2d/<target>/}.
+reference densities. To contextualize the geometry of these targets, we also
+show short-run visualization panels for representative cases; additional target
+panels can be appended in the same format.
 
 \begin{figure}[t]
   \centering
-  \fbox{\parbox{0.9\linewidth}{Placeholder for 2D summary figure.}}
-  \caption{2D targets: placeholder for the main figure.}
-  \label{fig:2d_placeholder}
+  \begin{subfigure}[t]{0.95\linewidth}
+    \centering
+    \safeincludegraphics[width=\linewidth]{../figures/2d_demo_v2/banana_demo.png}
+    \caption{Banana target: initial and short-run final particle states.}
+    \label{fig:2d_demo_banana}
+  \end{subfigure}
+
+  \vspace{0.35em}
+
+  \begin{subfigure}[t]{0.95\linewidth}
+    \centering
+    \safeincludegraphics[width=\linewidth]{../figures/2d_demo_v2_tuned/squiggly_demo.png}
+    \caption{Squiggly target: initial and short-run final particle states.}
+    \label{fig:2d_demo_squiggly}
+  \end{subfigure}
+  \caption{2D target visualization panels produced with Adapt-MR-SVGD under
+  visualization-only settings. Each subfigure shows target-density contours with
+  initial particles (left) and short-run final particles (right).}
+  \label{fig:2d_demo_panel}
 \end{figure}
 
 \begin{table}[t]

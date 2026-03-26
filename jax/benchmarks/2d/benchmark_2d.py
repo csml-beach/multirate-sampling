@@ -52,11 +52,37 @@ os.makedirs(OUT_DIR, exist_ok=True)
 GRID_L1_SIZE = 200
 
 
+def _split_bounds(bounds):
+    if (
+        isinstance(bounds, tuple)
+        and len(bounds) == 2
+        and np.isscalar(bounds[0])
+        and np.isscalar(bounds[1])
+    ):
+        xmin, xmax = float(bounds[0]), float(bounds[1])
+        ymin, ymax = xmin, xmax
+        return xmin, xmax, ymin, ymax
+    if (
+        isinstance(bounds, tuple)
+        and len(bounds) == 2
+        and isinstance(bounds[0], tuple)
+        and isinstance(bounds[1], tuple)
+        and len(bounds[0]) == 2
+        and len(bounds[1]) == 2
+    ):
+        xmin, xmax = float(bounds[0][0]), float(bounds[0][1])
+        ymin, ymax = float(bounds[1][0]), float(bounds[1][1])
+        return xmin, xmax, ymin, ymax
+    raise ValueError(f"Invalid bounds format: {bounds!r}")
+
+
 def _build_grid_reference(logp_fn, bounds, grid_size):
-    xmin, xmax = bounds
-    edges = np.linspace(xmin, xmax, grid_size + 1)
-    centers = 0.5 * (edges[:-1] + edges[1:])
-    xx, yy = np.meshgrid(centers, centers, indexing="xy")
+    xmin, xmax, ymin, ymax = _split_bounds(bounds)
+    x_edges = np.linspace(xmin, xmax, grid_size + 1)
+    y_edges = np.linspace(ymin, ymax, grid_size + 1)
+    x_centers = 0.5 * (x_edges[:-1] + x_edges[1:])
+    y_centers = 0.5 * (y_edges[:-1] + y_edges[1:])
+    xx, yy = np.meshgrid(x_centers, y_centers, indexing="xy")
     pts = np.stack([xx.ravel(), yy.ravel()], axis=1)
     logp = np.asarray(logp_fn(jnp.asarray(pts)))
     logp = logp - np.max(logp)
@@ -65,15 +91,15 @@ def _build_grid_reference(logp_fn, bounds, grid_size):
     if w_sum == 0.0:
         raise ValueError("Grid reference density has zero mass.")
     ref = (w / w_sum).reshape(grid_size, grid_size)
-    return edges, ref
+    return x_edges, y_edges, ref
 
 
-def _grid_l1(samples, edges, ref):
+def _grid_l1(samples, x_edges, y_edges, ref):
     samples_np = np.asarray(samples)
     hist, _, _ = np.histogram2d(
         samples_np[:, 0],
         samples_np[:, 1],
-        bins=[edges, edges],
+        bins=[x_edges, y_edges],
     )
     total = hist.sum()
     if total == 0.0:
@@ -84,10 +110,14 @@ def _grid_l1(samples, edges, ref):
 
 def run_target(target_name, key):
     logp, score_fn, mean_ref, cov_ref, bounds = get_target(target_name)
-    grid_edges, grid_ref = _build_grid_reference(logp, bounds, GRID_L1_SIZE)
+    x_edges, y_edges, grid_ref = _build_grid_reference(logp, bounds, GRID_L1_SIZE)
 
-    init_particles = jax.random.uniform(key, (N_particles, 2), minval=-4.0, maxval=4.0)
-    x0_chain = jax.random.uniform(key, (2,), minval=-4.0, maxval=4.0)
+    xmin, xmax, ymin, ymax = _split_bounds(bounds)
+    init_min = jnp.asarray([xmin, ymin], dtype=jnp.float32)
+    init_max = jnp.asarray([xmax, ymax], dtype=jnp.float32)
+
+    init_particles = jax.random.uniform(key, (N_particles, 2), minval=init_min, maxval=init_max)
+    x0_chain = jax.random.uniform(key, (2,), minval=init_min, maxval=init_max)
 
     samplers = {}
     samplers["multirate_svgd"] = (
@@ -189,7 +219,7 @@ def run_target(target_name, key):
                     ess_val = ess_1d(samples[:, 0])
                     ksd_val = ksd_rbf(samples, score_fn)
                     mlp_val = mean_log_prob(samples, logp)
-                    grid_l1_val = _grid_l1(samples, grid_edges, grid_ref)
+                    grid_l1_val = _grid_l1(samples, x_edges, y_edges, grid_ref)
                     nonfinite_frac = float(info.get("nonfinite_frac", 0.0))
                     m_used = float(info.get("m_used", 0.0))
 
