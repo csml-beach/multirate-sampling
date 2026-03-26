@@ -102,7 +102,6 @@ def run_target(target_name, key):
                 logp,
                 base_dt=lr_svgd,
                 m=4,
-                L_inv=None,
                 bw_scale=BW_SCALE,
             ),
         )
@@ -115,7 +114,6 @@ def run_target(target_name, key):
                 m_min=1,
                 m_max=16,
                 err_tol=ERR_TOL,
-                L_inv=None,
                 bw_scale=BW_SCALE,
             ),
         )

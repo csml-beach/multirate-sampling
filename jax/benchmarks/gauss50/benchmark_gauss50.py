@@ -26,7 +26,6 @@ DEBUG_MULTIRATE = False    # Set True to debug multirate for a few steps
 DEBUG_STEPS = 5
 chain_window = 100        # Sliding window size for single-chain metrics
 RUN_ONLY_ADAPTIVE = False   # Run only adaptive multirate for focused debugging
-USE_WHITENING = False      # Apply whitening for SVGD-family methods
 BW_SCALE = 0.5             # <1.0 strengthens repulsion (smaller bandwidth)
 EARLY_STOP = True          # Stop when KSD worsens persistently
 EARLY_STOP_TOL = 0.1      # Relative degradation allowed (5%)
@@ -44,7 +43,7 @@ os.makedirs(os.path.dirname(out_csv), exist_ok=True)
 # ----------- target distribution -----------------------------------------
 base_key = jax.random.PRNGKey(0)
 # Create a 50-dimensional Gaussian with random covariance structure
-logp, Sigma, L_inv = make_gaussian50(base_key)     # keep the Cholesky inverse for multirate
+logp, Sigma = make_gaussian50(base_key)
 score_fn = lambda x: jax.grad(lambda y: jnp.sum(logp(y)))(x)
 
 # -------------- CSV header -----------------------------------------------
@@ -77,7 +76,6 @@ with open(out_csv, "w", newline="") as f:
                 base_dt=lr_svgd,   # Match SVGD step size for fair comparison
                 m=4,               # Fixed repulsion substeps (IMEX-style)
                 debug=DEBUG_MULTIRATE,
-                L_inv=L_inv if USE_WHITENING else None,
                 bw_scale=BW_SCALE)
         )
 
@@ -89,7 +87,6 @@ with open(out_csv, "w", newline="") as f:
                 m_min=1, m_max=16,
                 err_tol=1e-2,
                 debug=DEBUG_MULTIRATE,
-                L_inv=L_inv if USE_WHITENING else None,
                 bw_scale=BW_SCALE)
         )
 

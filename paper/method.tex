@@ -203,8 +203,8 @@ trajectory to avoid extra drift evaluations.
 \end{algorithmic}
 \end{algorithm}
 
-\paragraph{Whitening and numerical guards}
-For high-dimensional Gaussian targets, we optionally transform particles using
-a whitening matrix $L^{-1}$ derived from the target covariance. We also clip
-gradients and clamp extreme values to avoid non-finite updates; these guards do
-not change the fixed point but improve robustness.
+\paragraph{Numerical guards}
+To improve robustness, we clip gradients and clamp extreme state values before
+and after the split updates, and we replace non-finite updates with the last
+finite state. These safeguards are implementation-level stability controls and
+do not alter the intended fixed point of the discretization.

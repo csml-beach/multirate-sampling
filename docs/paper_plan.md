@@ -33,7 +33,7 @@ Status key: [ ] planned  [~] drafting  [x] approved  [!] needs input
 4) Experiments (includes Results)
 - Goal: Describe benchmarks, protocols, metrics, and evaluation settings, plus Results in the same section.
 - Candidate subsections:
-  - 50D Gaussian (whitening option; metrics: mu/cov error, ESS, KSD, mean logp)
+  - 50D Gaussian (metrics: mu/cov error, ESS, KSD, mean logp)
   - 2D targets (banana/ring/squiggly/two_moons/funnel; grid L1, KSD, ESS)
   - UCI logistic regression (accuracy/NLL/ECE/ESS; dataset splits)
   - UCI BNN (1-hidden-layer BNN on breast_cancer/ionosphere/a5a; accuracy/NLL/ECE/ESS)

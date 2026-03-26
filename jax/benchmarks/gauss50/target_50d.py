@@ -2,7 +2,7 @@
 import jax, jax.numpy as jnp
 
 def make_gaussian50(key, d=50, log10_range=(0, -3)):
-    """Return (logprob_fn, Σ, Σ^{-1/2}) for a random 50-dim Gaussian."""
+    """Return (logprob_fn, Σ) for a random 50-dim Gaussian."""
     k1, k2 = jax.random.split(key)
     # random orthogonal matrix Q
     Q, _ = jnp.linalg.qr(jax.random.normal(k1, (d, d)))
@@ -17,4 +17,4 @@ def make_gaussian50(key, d=50, log10_range=(0, -3)):
         q = (x * (Σ_inv @ x.T).T).sum(axis=-1)   # quadratic form
         return -0.5 * q
 
-    return logprob, Σ, jnp.linalg.cholesky(Σ_inv)
+    return logprob, Σ

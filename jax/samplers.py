@@ -115,7 +115,6 @@ def make_multirate_svgd_step(
         logprob_fn,
         base_dt,                    # ← just once!
         *,
-        L_inv=None,                 # whitening matrix  Σ^{-½}
         m=4,
         grad_clip=50.0,             # clip ∇log p
         bw_scale=1.0,
@@ -126,9 +125,7 @@ def make_multirate_svgd_step(
         return K, rep
 
     def step(x, _key):
-
-        # optional whitening of coordinates
-        z = (L_inv @ x.T).T if L_inv is not None else x
+        z = x
         # clamp before kernel to avoid extreme distances causing inf/NaN
         z = jnp.clip(z, -1e2, 1e2)
 
@@ -159,23 +156,15 @@ def make_multirate_svgd_step(
             z, rep_nonfinite_max = jax.lax.fori_loop(0, m, rep_loop, (z, 0.0))
 
         # ---------- attractive drift (slow) ------------------------------
-        x_mid = (jax.scipy.linalg.solve(L_inv, z.T, assume_a="pos").T
-                 if L_inv is not None else z)
-        g_raw = jax.grad(lambda y: jnp.sum(logprob_fn(y)))(x_mid)
+        g_raw = jax.grad(lambda y: jnp.sum(logprob_fn(y)))(z)
         g_raw = jnp.clip(g_raw, -grad_clip, grad_clip)
-
-        g = (jax.scipy.linalg.solve(L_inv.T, g_raw.T, assume_a="pos").T
-             if L_inv is not None else g_raw)
         K, _ = _kernel_rep(z)
-        drift = K @ g
+        drift = K @ g_raw
         z = z + base_dt * drift
 
-        # guard before de-whitening
+        # guard before final non-finite check
         z = jnp.clip(z, -1e4, 1e4)
-
-        # back to raw coordinates
-        x_new = (jax.scipy.linalg.solve(L_inv, z.T, assume_a="pos").T
-                 if L_inv is not None else z)
+        x_new = z
 
         # final NaN/Inf guard: keep prior values and surface diagnostics
         finite = jnp.isfinite(x_new)
@@ -199,7 +188,6 @@ def make_adaptive_multirate_svgd_step(
         logprob_fn,
         base_dt,
         *,
-        L_inv=None,
         m_min=1,
         m_max=8,
         err_tol=1e-2,
@@ -215,14 +203,10 @@ def make_adaptive_multirate_svgd_step(
         return jnp.sqrt(jnp.mean(x**2) + 1e-12)
 
     def _drift(z_in):
-        x_mid = (jax.scipy.linalg.solve(L_inv, z_in.T, assume_a="pos").T
-                 if L_inv is not None else z_in)
-        g_raw = jax.grad(lambda y: jnp.sum(logprob_fn(y)))(x_mid)
+        g_raw = jax.grad(lambda y: jnp.sum(logprob_fn(y)))(z_in)
         g_raw = jnp.clip(g_raw, -grad_clip, grad_clip)
-        g = (jax.scipy.linalg.solve(L_inv.T, g_raw.T, assume_a="pos").T
-             if L_inv is not None else g_raw)
         K, _ = _kernel_rep(z_in)
-        return K @ g
+        return K @ g_raw
 
     def _apply_drift(z_in, drift_in, dt):
         z_new = z_in + dt * drift_in
@@ -232,7 +216,7 @@ def make_adaptive_multirate_svgd_step(
         return z_safe, nonfinite
 
     def step(x, _key):
-        z = (L_inv @ x.T).T if L_inv is not None else x
+        z = x
         z = jnp.clip(z, -1e2, 1e2)
 
         # Repulsion once per iteration (guard against nonfinite).
@@ -317,11 +301,9 @@ def make_adaptive_multirate_svgd_step(
                 operand=None,
             )
 
-        # guard before de-whitening
+        # guard before final non-finite check
         z = jnp.clip(z, -1e4, 1e4)
-
-        x_new = (jax.scipy.linalg.solve(L_inv, z.T, assume_a="pos").T
-                 if L_inv is not None else z)
+        x_new = z
 
         finite = jnp.isfinite(x_new)
         x_safe = jnp.where(finite, x_new, x)

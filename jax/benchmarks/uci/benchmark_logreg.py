@@ -156,7 +156,7 @@ def main():
                 samplers = {}
                 samplers["multirate_svgd"] = (
                     init_particles,
-                    make_multirate_svgd_step(logp, base_dt=lr_svgd, m=4, L_inv=None, bw_scale=BW_SCALE),
+                    make_multirate_svgd_step(logp, base_dt=lr_svgd, m=4, bw_scale=BW_SCALE),
                 )
                 samplers["adaptive_multirate_svgd"] = (
                     init_particles,
@@ -166,7 +166,6 @@ def main():
                         m_min=1,
                         m_max=8,
                         err_tol=ERR_TOL,
-                        L_inv=None,
                         bw_scale=BW_SCALE,
                     ),
                 )

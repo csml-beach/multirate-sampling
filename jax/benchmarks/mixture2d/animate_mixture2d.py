@@ -49,7 +49,6 @@ def _build_sampler(name, logp, n_particles, lr_svgd, lr_sgld, lr_sghmc, err_tol,
             logp,
             base_dt=lr_svgd,
             m=4,
-            L_inv=None,
             bw_scale=bw_scale,
         ), False
     if name == "adaptive_multirate_svgd":
@@ -60,7 +59,6 @@ def _build_sampler(name, logp, n_particles, lr_svgd, lr_sgld, lr_sghmc, err_tol,
             m_min=1,
             m_max=m_max,
             err_tol=err_tol,
-            L_inv=None,
             bw_scale=bw_scale,
         )
         return state, step, False
