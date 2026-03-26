@@ -3,7 +3,6 @@
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/csml-beach/multirate-sampling)
 
 Code accompanying the multirate SVGD submission. The repository implements fixed and adaptive multirate SVGD variants, compares them against particle and stochastic-gradient MCMC baselines, and evaluates quality-cost tradeoffs across synthetic and UCI tasks.
-![adaptive_multirate_svgd](https://github.com/user-attachments/assets/8931c806-a307-41de-97bd-e53b664ff8e4)
 
 ## Highlights
 
