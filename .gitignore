@@ -163,3 +163,22 @@ cython_debug/
 /figures
 /metrics
 /animations
+
+# Local tool caches / manuscript aux
+.home/
+.mpl-cache/
+.playwright-cli/
+/main.aux
+/main.bbl
+/main.blg
+/main.fdb_latexmk
+/main.fls
+/main.spl
+paper/*.aux
+paper/*.bbl
+paper/*.blg
+paper/*.fdb_latexmk
+paper/*.fls
+paper/*.spl
+jax/benchmarks/2d/targets_2d_cache/
+jax/targets_2d_cache/
