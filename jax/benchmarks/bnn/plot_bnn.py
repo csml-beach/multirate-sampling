@@ -75,6 +75,7 @@ def _plot_bars(latest, metric, ylabel, fname):
         legend=False,
         order=plot_methods,
     )
+    ax.set_xticks(range(len(plot_methods)))
     ax.set_xticklabels([_label(m) for m in plot_methods], rotation=30, ha="right")
     ax.set_xlabel("")
     plt.ylabel(ylabel)

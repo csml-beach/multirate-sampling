@@ -412,10 +412,11 @@ with panels analogous to the logistic-regression benchmark.
     \caption{ionosphere}
     \label{fig:bnn_ionosphere}
   \end{subfigure}
-  \caption{BNN summary across datasets. Each subpanel reports final-checkpoint
-  mean across seeds with one standard deviation for test accuracy, NLL, ECE,
-  and ESS. Higher is better for accuracy and ESS; lower is better for NLL and
-  ECE. The remaining dataset appears in the continued panel.}
+  \caption{BNN summary across datasets. Each subpanel reports the
+  best-checkpoint mean across seeds with one standard deviation for test
+  accuracy, NLL, ECE, and ESS, where the checkpoint is selected by the
+  NLL-based early-stop monitor. Higher is better for accuracy and ESS; lower is
+  better for NLL and ECE. The remaining dataset appears in the continued panel.}
   \label{fig:bnn_summary}
 \end{figure}
 
@@ -430,6 +431,23 @@ with panels analogous to the logistic-regression benchmark.
   \end{subfigure}
   \caption[]{BNN summary across datasets (continued).}
 \end{figure}
+
+Under the predictive NLL-based stopping rule, the four particle methods are
+nearly indistinguishable on breast\_cancer and ionosphere: their mean NLLs
+cluster around $0.059$ and $0.255$, respectively, with similarly close
+accuracy and calibration. The clearest particle-method separation appears on
+a5a, where MR-SVGD attains the best mean NLL among particle methods
+($0.336$), Adapt-MR-SVGD is a close second ($0.342$), and the single-rate
+particle variants are clearly worse ($0.374$ for SVGD and $0.382$ for
+Strang-SVGD).
+
+The chain baselines make this section more mixed than the 2D and HLR suites.
+SGHMC is particularly strong on ionosphere, and SGLD is competitive on a5a, but
+both do so with ESS values that are far below the particle methods. The BNN
+benchmark therefore supports a narrower claim: multirate particle methods remain
+competitive across datasets and clearly improve over the single-rate particle
+variants on the hardest dataset here, but their predictive advantage is
+dataset-dependent rather than uniform.
 
 \subsection{Large-scale hierarchical logistic regression}
 
