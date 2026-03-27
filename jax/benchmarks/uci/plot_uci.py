@@ -95,9 +95,22 @@ def _get_run_cols(df):
 def _latest_per_run(df):
     run_cols = _get_run_cols(df)
     if run_cols:
-        sort_cols = run_cols + ["iter"]
-        return df.sort_values(sort_cols).groupby(["method"] + run_cols).tail(1).copy()
-    return df.sort_values("iter").groupby("method").tail(1).copy()
+        if "is_best" in df.columns:
+            df_last = df.sort_values(run_cols + ["iter"]).groupby(["method"] + run_cols).tail(1)
+            df_best = df[df["is_best"] == 1]
+            if not df_best.empty:
+                best_idx = df_best.set_index(["method"] + run_cols)
+                last_idx = df_last.set_index(["method"] + run_cols)
+                return best_idx.combine_first(last_idx).reset_index()
+        return df.groupby(["method"] + run_cols, sort=False).tail(1).copy()
+    if "is_best" in df.columns:
+        df_last = df.sort_values("iter").groupby("method").tail(1)
+        df_best = df[df["is_best"] == 1]
+        if not df_best.empty:
+            best_idx = df_best.set_index(["method"])
+            last_idx = df_last.set_index(["method"])
+            return best_idx.combine_first(last_idx).reset_index()
+    return df.groupby("method", sort=False).tail(1).copy()
 
 
 def _plot_dual_x(df, metric, ylabel, fname, logy=False, smooth=True, window=7):
@@ -180,6 +193,7 @@ def _plot_bars(latest, metric, ylabel, fname):
         legend=False,
         order=plot_methods,
     )
+    ax.set_xticks(range(len(plot_methods)))
     ax.set_xticklabels([_label(m) for m in plot_methods], rotation=30, ha="right")
     ax.set_xlabel("")
     plt.ylabel(ylabel)

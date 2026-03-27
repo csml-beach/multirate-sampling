@@ -134,6 +134,7 @@ def main():
                     "ess",
                     "ksd",
                     "mean_logp",
+                    "is_best",
                 ]
             )
 
@@ -238,6 +239,7 @@ def main():
                                 ess_val,
                                 ksd_val,
                                 mlp_val,
+                                0,
                             ]
                             writer.writerow(row)
                             f.flush()
@@ -249,7 +251,7 @@ def main():
                                     bad_checks += 1
                                 elif best_metric is None or metric_val < best_metric:
                                     best_metric = metric_val
-                                    best_row = row
+                                    best_row = row[:-1] + [1]
                                     best_iter = it
                                     bad_checks = 0
                                 elif check_count >= EARLY_STOP_MIN_CHECKS and metric_val > best_metric * (1.0 + EARLY_STOP_TOL):

@@ -51,7 +51,8 @@ This file tracks all \label{} keys used in equations, figures, and tables in the
 ## Tables
 
 - tab:2d_summary — 2D targets quality-cost summary table (median final metrics)
-- tab:uci_rank_summary — UCI logistic-regression winner scorecard by dataset/metric (particle methods)
+- tab:uci_nll_summary — UCI logistic-regression particle-method summary by dataset using best finite-NLL checkpoints
+- tab:bnn_nll_summary — BNN particle-method summary by dataset using best finite-NLL checkpoints
 - tab:hlr_longtail_summary — HLR long-tail quality-cost summary table (best finite-NLL checkpoints)
 - tab:hlr_uniform_summary — HLR uniform-group quality-cost summary table (best finite-NLL checkpoints)
 
