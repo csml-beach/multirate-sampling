@@ -142,10 +142,11 @@ kernel-evaluation counts as hardware-agnostic measures of computational cost.
 
 All benchmarks use checkpointed evaluation at interval \texttt{save\_every} and
 an early-stopping rule triggered by persistent degradation of a designated
-monitor metric. We use KSD as the monitor for 50D Gaussian, 2D synthetic
-targets, Mixture2D, and BNN (\texttt{COMPUTE\_KSD=True} in the BNN setup),
-whereas UCI logistic regression uses NLL as the monitor because its default
-configuration sets \texttt{COMPUTE\_KSD=False}.
+monitor metric. We make this policy explicit: pure sampling benchmarks use KSD
+as the monitor (50D Gaussian, 2D synthetic targets, and Mixture2D), whereas
+predictive benchmarks use held-out NLL as the monitor (UCI logistic regression,
+BNN, and HLR). Accuracy and ECE are reported for predictive tasks but are not
+used as stopping triggers.
 
 \subsection{50D Gaussian}
 
@@ -183,12 +184,17 @@ probability.
 
 \subsection{2D synthetic targets}
 
-We evaluate banana, ring, squiggly, two-moons, and funnel targets with 1,000
-iterations and checkpointing every 20 steps. Metrics include mean error, covariance
-error, ESS, KSD, mean log probability, and grid-based $L_1$ discrepancy against
-reference densities. To contextualize the geometry of these targets, we also
-show short-run visualization panels for representative cases; additional target
-panels can be appended in the same format.
+We evaluate banana, ring, squiggly, two-moons, and funnel targets over five
+seeds, with 1,000 iterations and checkpointing every 20 steps. Following the
+pure-sampling policy above, we use KSD as the primary quality metric and
+early-stop monitor. For each target-seed-method run, we retain the best
+checkpoint selected by this KSD monitor. We report mean log probability as a
+secondary density-concentration score, gradient/kernel evaluations and wall
+time as cost metrics, and ESS as a supplemental mixing proxy. Moment errors and
+grid-based $L_1$ discrepancy are retained as diagnostics, but they are not used
+in the main 2D summary table. To contextualize the geometry of these targets,
+we also show short-run visualization panels for representative cases;
+additional target panels can be appended in the same format.
 
 \begin{figure}[t]
   \centering
@@ -237,23 +243,52 @@ panels can be appended in the same format.
 \begin{table}[t]
   \centering
   \scriptsize
-  \setlength{\tabcolsep}{4pt}
-  \begin{tabular}{lccccc}
+  \setlength{\tabcolsep}{3pt}
+  \begin{tabular}{lcccccc}
     \toprule
-    Method & Med.\ $L_1\downarrow$ & Med.\ KSD$\downarrow$ & Med.\ grad evals$\downarrow$ & Med.\ wall (s)$\downarrow$ & Pareto \\
+    Method & Fails$\downarrow$ & KSD$\downarrow$ & mean logp$\uparrow$ & ESS$\uparrow$ & grad evals$\downarrow$ & wall (s)$\downarrow$ \\
     \midrule
-    SVGD & 1.964 & 604.15 & 180 & 0.77 & Yes \\
-    Strang-SVGD & 1.997 & 57.17 & 220 & 2.44 & Yes \\
-    MR-SVGD & 1.999 & 68.27 & 180 & 3.11 & No \\
-    Adapt-MR-SVGD & 1.999 & 1.94 & 1004 & 2.89 & Yes \\
+    Adapt-MR-SVGD & 0 & 0.308 & -0.175 & 128.0 & 182 & 0.79 \\
+    MR-SVGD & 0 & 40.13 & -278.0 & 121.8 & 80 & 1.13 \\
+    SVGD & 4 & 26.02 & $-1.93\times 10^4$ & 128.0 & 80 & 0.32 \\
+    Strang-SVGD & 4 & 30.09 & $-1.20\times 10^5$ & 121.7 & 121 & 1.55 \\
     \bottomrule
   \end{tabular}
   \caption{2D targets quality-cost summary across particle methods. Entries are
-  medians across targets of final-checkpoint metrics from current outputs
-  (\texttt{metrics/2d/*.csv}). Lower is better for $L_1$ and KSD. The Pareto flag
-  is computed on the (median KSD, median wall-time) plane.}
+  medians over the $25$ target-seed runs, using the best checkpoint selected by
+  the KSD monitor for each run. ``Fails'' counts runs whose KSD monitor never
+  attained a finite value; methods are ordered first by failure count and then
+  by median KSD. KSD is the primary distributional quality metric; mean log
+  probability is reported as a secondary score, ESS as a supplemental mixing
+  indicator, and gradient evaluations / wall time as cost metrics. Moment
+  errors and grid $L_1$ remain diagnostic quantities and are omitted from this
+  main summary.}
   \label{tab:2d_summary}
 \end{table}
+
+Across the full 2D suite, Adapt-MR-SVGD gives the strongest overall
+distributional fidelity: it is the only particle method with zero failures,
+attains the best overall median KSD, and also attains the best median mean
+log-density while retaining high ESS. The gain is concentrated on the
+geometry-driven ring, squiggly, and two-moons targets, where Adapt-MR-SVGD
+achieves the best mean KSD over seeds (approximately $0.231$, $1.03$, and
+$0.308$, respectively) and the single-rate particle methods degrade sharply.
+On the easier banana target, by contrast, all particle methods attain nearly
+identical KSD values around $0.116$, indicating that multirate treatment is
+not especially beneficial when the target geometry is comparatively mild.
+
+The funnel target remains the main exception. Fixed MR-SVGD attains the best
+mean KSD on funnel ($0.261$ versus $0.456$ for Adapt-MR-SVGD), but
+Adapt-MR-SVGD still remains fully stable and yields substantially better mean
+log-density ($-0.023$ versus $-2.89$). Vanilla SVGD and Strang-SVGD each fail
+on four of the five funnel seeds, so finite-run medians alone would understate
+their instability; this is why \cref{tab:2d_summary} reports failure counts
+alongside the quality and cost summaries. Overall, these 2D results sharpen the
+main qualitative claim: adaptive multirate integration is most valuable when
+the interaction between drift and repulsion becomes strongly geometry-dependent,
+rather than as a uniform improvement on every benign target. In this setting,
+ESS is much less discriminative than KSD and mean log-density, so we treat it
+as a supplemental mixing indicator rather than a primary quality metric.
 
 \subsection{Mixture2D (mix8)}
 
@@ -354,9 +389,11 @@ scorecard (particle methods only) in \cref{tab:uci_rank_summary}
 \subsection{Bayesian neural network}
 
 We evaluate a one-hidden-layer BNN (hidden width 32) on breast\_cancer,
-ionosphere, and a5a, using a Gaussian prior and 5 seeds per dataset. We report
-test accuracy, NLL, ECE, ESS, KSD, and mean log probability, and summarize
-results with panels analogous to the logistic-regression benchmark.
+ionosphere, and a5a, using a Gaussian prior and 5 seeds per dataset. Following
+the predictive-benchmark policy above, we use held-out NLL for early stopping
+and report test accuracy, NLL, ECE, ESS, and mean log probability; KSD is
+optional and disabled by default in this configuration. Results are summarized
+with panels analogous to the logistic-regression benchmark.
 
 \begin{figure}[t]
   \centering

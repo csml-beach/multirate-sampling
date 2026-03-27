@@ -1,6 +1,6 @@
 outs:
-- md5: 41007120f19b682d398f6e5b35588345.dir
-  size: 8873605
-  nfiles: 125
+- md5: b4f08cf4b166881758bd8d2a3b7805c0.dir
+  size: 9715141
+  nfiles: 130
   hash: md5
   path: figures

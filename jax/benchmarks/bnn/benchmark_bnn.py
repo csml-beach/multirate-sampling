@@ -42,7 +42,8 @@ lr_sghmc = 1e-3
 BW_SCALE = 0.1
 ERR_TOL = 1e-2
 
-COMPUTE_KSD = True
+# Predictive benchmark: use held-out NLL as the stop metric.
+COMPUTE_KSD = False
 EARLY_STOP = True
 EARLY_STOP_TOL = 0.1
 EARLY_STOP_PATIENCE = 5
@@ -239,7 +240,7 @@ def main():
                     t0 = time.time()
                     grad_eval_counts[name] = 0.0
                     kernel_eval_counts[name] = 0.0
-                    best_ksd = None
+                    best_metric = None
                     best_row = None
                     best_iter = None
                     last_iter = None
@@ -295,14 +296,14 @@ def main():
                                 metric_val = ksd_val if COMPUTE_KSD else nll_val
                                 if not math.isfinite(metric_val):
                                     bad_checks += 1
-                                elif best_ksd is None or metric_val < best_ksd:
-                                    best_ksd = metric_val
+                                elif best_metric is None or metric_val < best_metric:
+                                    best_metric = metric_val
                                     best_row = row[:-1] + [1]
                                     best_iter = it
                                     bad_checks = 0
                                 elif (
                                     check_count >= EARLY_STOP_MIN_CHECKS
-                                    and metric_val > best_ksd * (1.0 + EARLY_STOP_TOL)
+                                    and metric_val > best_metric * (1.0 + EARLY_STOP_TOL)
                                 ):
                                     bad_checks += 1
                                 else:
@@ -311,7 +312,7 @@ def main():
                                     check_count >= EARLY_STOP_MIN_CHECKS
                                     and bad_checks >= EARLY_STOP_PATIENCE
                                 ):
-                                    best_str = f"{best_ksd:.3g}" if best_ksd is not None else "nan"
+                                    best_str = f"{best_metric:.3g}" if best_metric is not None else "nan"
                                     metric_name = "ksd" if COMPUTE_KSD else "nll"
                                     print(
                                         f"early stop: {dataset_name} | seed {seed} | {name} at iter {it} "
