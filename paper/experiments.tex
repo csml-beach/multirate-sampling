@@ -294,22 +294,64 @@ as a supplemental mixing indicator rather than a primary quality metric.
 
 \subsection{Mixture2D (mix8)}
 
-This benchmark emphasizes mode discovery and mass allocation across modes. We
-run 1,000 iterations (checkpoint every 20) across 5 seeds. Metrics include mode
-coverage, mode entropy, imbalance, minimum mass per mode, ESS, KSD, mean log
-probability, and grid $L_1$ discrepancy. The summary panels directly visualize
-coverage/entropy-quality tradeoffs together with cost-aware curves.
+This benchmark emphasizes multimodal exploration and mass allocation across
+modes. All methods start from the same small Gaussian centered at the origin,
+away from the modal ring, and then run for a fixed budget of 1,000 iterations
+with checkpointing every 20 steps across 5 seeds. We define mode coverage by
+assigning each sample to its nearest mixture center and counting a mode as
+covered once it carries at least 5\% of the empirical mass. The primary metrics
+are mode coverage, normalized mode entropy, and minimum mass per mode; KSD and
+mean log probability are retained as secondary diagnostics, with ESS reported as
+a supplemental mixing proxy.
 
 \begin{figure}[t]
   \centering
   \safeincludegraphics[width=0.9\linewidth]{../figures/mixture2d/mix8/mix8_summary_metric_panels.png}
-  \caption{Mixture2D (mix8) final-checkpoint summary across methods. The four
+  \caption{Mixture2D (mix8) fixed-budget final-checkpoint summary across methods.
+  The four
   panels report mode coverage, mode entropy, minimum mass per mode, and KSD;
   markers show mean values across seeds and error bars indicate one standard
   deviation. Higher is better for coverage, entropy, and minimum mass per mode,
   while lower is better for KSD.}
   \label{fig:mix8_summary}
 \end{figure}
+
+\begin{table}[t]
+  \centering
+  \small
+  \setlength{\tabcolsep}{7pt}
+  \caption{Mixture2D (mix8) mean final metrics over five seeds at the fixed
+  1,000-iteration budget. Higher is better for coverage and entropy; lower is
+  better for KSD. We omit minimum mass because it is zero for all methods at
+  this budget.}
+  \begin{tabular}{lrrr}
+    \toprule
+    Method & Coverage$\uparrow$ & Entropy$\uparrow$ & KSD$\downarrow$ \\
+    \midrule
+    Adapt-MR-SVGD & 0.400 & 0.461 & 0.317 \\
+    SVGD          & 0.325 & 0.375 & 6153.2 \\
+    Strang-SVGD   & 0.250 & 0.311 & $1.17\times 10^{8}$ \\
+    MR-SVGD       & 0.250 & 0.294 & 77.9 \\
+    SGHMC         & 0.125 & 0.000 & 2.29 \\
+    SGLD          & 0.125 & 0.000 & 2.53 \\
+    \bottomrule
+  \end{tabular}
+  \label{tab:mix8_summary}
+\end{table}
+
+Under this harder off-mode initialization, adaptive MR-SVGD gives the strongest
+overall multimodal exploration at the fixed budget, attaining the highest mean
+final mode coverage and mode entropy across seeds; \cref{tab:mix8_summary}
+provides the corresponding mean-over-seeds summary, while
+\cref{fig:mix8_summary} carries the cross-seed variability. Vanilla SVGD
+occasionally reaches comparable coverage on individual seeds, but does so with
+extremely poor KSD and mean log probability, indicating unstable mass
+allocation rather than reliable exploration. Fixed MR-SVGD improves over the
+chain baselines but does not match the adaptive variant. SGLD and SGHMC remain
+trapped in a single mode, with final coverage fixed at $0.125$ and zero mode
+entropy. The minimum mass statistic is zero for all methods at this budget, so
+in this redesigned benchmark coverage and entropy are the informative
+multimodal diagnostics while KSD remains a secondary stability measure.
 
 \subsection{UCI logistic regression}
 
@@ -412,49 +454,37 @@ selected under the global predictive stopping policy
 
 \subsection{Bayesian neural network}
 
-We evaluate a one-hidden-layer BNN (hidden width 32) on breast\_cancer,
-ionosphere, and a5a, using a Gaussian prior and 5 seeds per dataset. We report
-test accuracy, NLL, ECE, ESS, and mean log probability; KSD is optional and
-disabled by default in this configuration. As in the UCI benchmark, all
-reported summaries use the best finite-NLL checkpoint under the global
-predictive stopping policy. Results are summarized with panels analogous to the
-logistic-regression benchmark.
+We evaluate a one-hidden-layer BNN (hidden width 32) on spambase and a5a,
+using a Gaussian prior, a fixed split seed, and 5 sampler seeds per dataset.
+For each dataset, we carve a validation split from the training data, select
+checkpoints by validation NLL under the global predictive stopping policy, and
+report test accuracy, test NLL, test ECE, ESS, and mean log probability at the
+selected checkpoint. KSD is optional and disabled by default in this
+configuration.
 
 \begin{figure}[t]
   \centering
   \begin{subfigure}[t]{0.9\linewidth}
     \centering
-    \safeincludegraphics[width=\linewidth]{../figures/bnn/breast_cancer/breast_cancer_summary_metric_panels.png}
-    \caption{breast\_cancer}
-    \label{fig:bnn_breast_cancer}
+    \safeincludegraphics[width=\linewidth]{../figures/bnn/spambase/spambase_summary_metric_panels.png}
+    \caption{spambase}
+    \label{fig:bnn_spambase}
   \end{subfigure}
 
   \vspace{0.25em}
 
   \begin{subfigure}[t]{0.9\linewidth}
     \centering
-    \safeincludegraphics[width=\linewidth]{../figures/bnn/ionosphere/ionosphere_summary_metric_panels.png}
-    \caption{ionosphere}
-    \label{fig:bnn_ionosphere}
-  \end{subfigure}
-  \caption{BNN summary across datasets. Each subpanel reports the
-  best-checkpoint mean across seeds with one standard deviation for test
-  accuracy, NLL, ECE, and ESS, where the checkpoint is selected by the
-  NLL-based early-stop monitor. Higher is better for accuracy and ESS; lower is
-  better for NLL and ECE. The remaining dataset appears in the continued panel.}
-  \label{fig:bnn_summary}
-\end{figure}
-
-\begin{figure}[t]
-  \ContinuedFloat
-  \centering
-  \begin{subfigure}[t]{0.9\linewidth}
-    \centering
     \safeincludegraphics[width=\linewidth]{../figures/bnn/a5a/a5a_summary_metric_panels.png}
     \caption{a5a}
     \label{fig:bnn_a5a}
   \end{subfigure}
-  \caption[]{BNN summary across datasets (continued).}
+  \caption{BNN summary across datasets. Each subpanel reports the
+  best-checkpoint mean across seeds with one standard deviation for test
+  accuracy, NLL, ECE, and ESS, where the checkpoint is selected by the
+  validation-NLL early-stop monitor. Higher is better for accuracy and ESS;
+  lower is better for NLL and ECE.}
+  \label{fig:bnn_summary}
 \end{figure}
 
 \begin{table}[t]
@@ -465,50 +495,40 @@ logistic-regression benchmark.
     \toprule
     Method & Best NLL$\downarrow$ & Acc@best NLL$\uparrow$ & Wall@best (s)$\downarrow$ \\
     \midrule
-    \multicolumn{4}{l}{\textit{breast\_cancer}} \\
-    Strang-SVGD & 0.059 & 0.979 & 18.6 \\
-    SVGD & 0.059 & 0.979 & 5.3 \\
-    Adapt-MR-SVGD & 0.059 & 0.979 & 12.6 \\
-    MR-SVGD & 0.060 & 0.977 & 18.9 \\
-    \midrule
-    \multicolumn{4}{l}{\textit{ionosphere}} \\
-    Strang-SVGD & 0.255 & 0.900 & 4.2 \\
-    SVGD & 0.255 & 0.900 & 1.1 \\
-    Adapt-MR-SVGD & 0.255 & 0.900 & 2.6 \\
-    MR-SVGD & 0.255 & 0.900 & 3.9 \\
+    \multicolumn{4}{l}{\textit{spambase}} \\
+    Adapt-MR-SVGD & 0.174 & 0.940 & 35.7 \\
+    Strang-SVGD & 0.187 & 0.930 & 51.2 \\
+    SVGD & 0.187 & 0.930 & 21.1 \\
+    MR-SVGD & 0.188 & 0.931 & 51.5 \\
     \midrule
     \multicolumn{4}{l}{\textit{a5a}} \\
-    MR-SVGD & 0.336 & 0.842 & 6.4 \\
-    Adapt-MR-SVGD & 0.342 & 0.838 & 12.7 \\
-    SVGD & 0.374 & 0.829 & 19.7 \\
-    Strang-SVGD & 0.382 & 0.829 & 30.6 \\
+    MR-SVGD & 0.334 & 0.844 & 5.3 \\
+    Adapt-MR-SVGD & 0.347 & 0.836 & 8.1 \\
+    SVGD & 0.362 & 0.834 & 17.5 \\
+    Strang-SVGD & 0.378 & 0.832 & 49.6 \\
     \bottomrule
   \end{tabular}
   \caption{BNN particle-method summary over five seeds. For each dataset and
-  method, we select the best finite-NLL checkpoint per seed and report the
-  method-wise mean of that best NLL, the accuracy at that checkpoint, and the
-  corresponding wall time. All four particle methods reached a finite best-NLL
-  checkpoint on all five seeds; ECE is summarized in the per-dataset panels of
+  method, we select the best finite-validation-NLL checkpoint per seed and
+  report the method-wise mean of the corresponding test NLL, test accuracy, and
+  wall time. ECE is summarized in the per-dataset panels of
   \cref{fig:bnn_summary}.}
   \label{tab:bnn_nll_summary}
 \end{table}
 
-Under the predictive NLL-based stopping rule, the four particle methods are
-nearly indistinguishable on breast\_cancer and ionosphere: their mean NLLs
-cluster around $0.059$ and $0.255$, respectively, with similarly close
-accuracy and calibration. The clearest particle-method separation appears on
-a5a, where MR-SVGD attains the best mean NLL among particle methods
-($0.336$), Adapt-MR-SVGD is a close second ($0.342$), and the single-rate
-particle variants are clearly worse ($0.374$ for SVGD and $0.382$ for
-Strang-SVGD).
-
-The chain baselines make this section more mixed than the 2D and HLR suites.
-SGHMC is particularly strong on ionosphere, and SGLD is competitive on a5a, but
-both do so with ESS values that are far below the particle methods. The BNN
-benchmark therefore supports a narrower claim: multirate particle methods remain
-competitive across datasets and clearly improve over the single-rate particle
-variants on the hardest dataset here, but their predictive advantage is
-dataset-dependent rather than uniform.
+The two BNN datasets give a more informative but less uniform predictive story
+than the earlier small-data configuration. On spambase, Adapt-MR-SVGD attains
+the best overall test NLL ($0.174$) and the highest mean test accuracy
+($0.940$), with the remaining particle methods clustered together around
+$0.187$. On a5a, the ranking shifts: MR-SVGD attains the best overall test NLL
+($0.334$) and the highest mean test accuracy ($0.844$), Adapt-MR-SVGD remains
+the second-best particle method ($0.347$), and the single-rate particle
+variants are again worse. The chain baselines are competitive in isolated
+cases---SGHMC on spambase and SGLD on a5a---but the multirate particle methods
+form the strongest pair overall across the two datasets. This makes the BNN
+benchmark supportive rather than decisive: multirate structure improves
+predictive quality over the single-rate particle baselines, but the preferred
+multirate variant depends on the dataset.
 
 \subsection{Large-scale hierarchical logistic regression}
 

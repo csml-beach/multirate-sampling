@@ -44,13 +44,13 @@ This file tracks all \label{} keys used in equations, figures, and tables in the
 - fig:uci_spambase — UCI spambase subpanel
 - fig:uci_a5a — UCI a5a subpanel
 - fig:bnn_summary — Bayesian neural network (BNN) summary panels
-- fig:bnn_breast_cancer — BNN breast\_cancer subpanel
-- fig:bnn_ionosphere — BNN ionosphere subpanel
+- fig:bnn_spambase — BNN spambase subpanel
 - fig:bnn_a5a — BNN a5a subpanel
 
 ## Tables
 
 - tab:2d_summary — 2D targets quality-cost summary table (median final metrics)
+- tab:mix8_summary — Mixture2D (mix8) mean final-metric summary table over five seeds
 - tab:uci_nll_summary — UCI logistic-regression particle-method summary by dataset using best finite-NLL checkpoints
 - tab:bnn_nll_summary — BNN particle-method summary by dataset using best finite-NLL checkpoints
 - tab:hlr_longtail_summary — HLR long-tail quality-cost summary table (best finite-NLL checkpoints)

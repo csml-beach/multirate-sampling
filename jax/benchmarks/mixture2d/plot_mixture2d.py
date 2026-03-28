@@ -81,7 +81,8 @@ def _plot_dual_x(df, metric, ylabel, fname, logy=False, smooth=True, window=7):
 
     x_col, x_label = _resolve_xaxis(df, False)
     for name, sub in df.groupby("method"):
-        x, y = sub[x_col].values, sub[metric].values
+        curve = sub.groupby(x_col, as_index=False)[metric].mean().sort_values(x_col)
+        x, y = curve[x_col].values, curve[metric].values
         if smooth:
             x, y = smooth_data(x, y, window)
         axes[0].plot(
@@ -103,7 +104,8 @@ def _plot_dual_x(df, metric, ylabel, fname, logy=False, smooth=True, window=7):
             sub = sub[sub["kernel_evals"] > 0]
             if sub.empty:
                 continue
-            x, y = sub["kernel_evals"].values, sub[metric].values
+            curve = sub.groupby("kernel_evals", as_index=False)[metric].mean().sort_values("kernel_evals")
+            x, y = curve["kernel_evals"].values, curve[metric].values
             if smooth:
                 x, y = smooth_data(x, y, window)
             axes[1].plot(
@@ -148,6 +150,7 @@ def _plot_bars(latest, metric, ylabel, fname):
         legend=False,
         order=plot_methods,
     )
+    ax.set_xticks(range(len(plot_methods)))
     ax.set_xticklabels([_label(m) for m in plot_methods], rotation=30, ha="right")
     ax.set_xlabel("")
     plt.ylabel(ylabel)

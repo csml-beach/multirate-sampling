@@ -24,7 +24,8 @@ def mode_stats(samples, centers, min_frac=0.05):
     probs = counts / total
     coverage = float(np.mean(probs >= min_frac))
     if n_modes > 1:
-        entropy = -np.sum(np.where(probs > 0, probs * np.log(probs), 0.0)) / np.log(n_modes)
+        positive = probs > 0
+        entropy = -np.sum(probs[positive] * np.log(probs[positive])) / np.log(n_modes)
     else:
         entropy = 0.0
     imbalance = float(np.std(probs))

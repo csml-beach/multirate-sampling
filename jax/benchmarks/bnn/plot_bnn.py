@@ -18,6 +18,7 @@ plt.rcParams.update(
 METRICS_DIR = Path("metrics") / "bnn"
 FIG_D = Path("figures") / "bnn"
 FIG_D.mkdir(parents=True, exist_ok=True)
+ACTIVE_DATASETS = ["spambase", "a5a"]
 
 plot_methods = [
     "vanilla_svgd",
@@ -48,23 +49,42 @@ def _label(method):
 def _load_datasets():
     if not METRICS_DIR.exists():
         raise FileNotFoundError(f"Missing metrics directory: {METRICS_DIR}")
-    return sorted(METRICS_DIR.glob("*.csv"))
+    csvs = [METRICS_DIR / f"{name}.csv" for name in ACTIVE_DATASETS]
+    return [path for path in csvs if path.exists()]
 
 
 def _latest_per_run(df):
+    group_cols = ["method", "seed"]
+    if "split_seed" in df.columns:
+        group_cols = ["method", "split_seed", "seed"]
     if "seed" not in df.columns:
         return df.sort_values("iter").groupby("method").tail(1).copy()
-    df_last = df.sort_values("iter").groupby(["method", "seed"]).tail(1)
-    if "is_best" in df.columns:
-        df_best = df[df["is_best"] == 1]
-        if not df_best.empty:
-            best_idx = df_best.set_index(["method", "seed"])
-            last_idx = df_last.set_index(["method", "seed"])
-            return best_idx.combine_first(last_idx).reset_index()
-    return df_last.reset_index(drop=True)
+    rows = []
+    metric_col = _metric_col(df, "val_nll", "nll")
+    for _, group in df.sort_values("iter").groupby(group_cols, sort=False):
+        if "is_best" in group.columns:
+            marked = group[group["is_best"] == 1]
+            if not marked.empty:
+                rows.append(marked.iloc[[0]])
+                continue
+        if metric_col is not None and group[metric_col].notna().any():
+            rows.append(group.loc[[group[metric_col].idxmin()]])
+        else:
+            rows.append(group.tail(1))
+    return pd.concat(rows, ignore_index=True)
 
 
-def _plot_bars(latest, metric, ylabel, fname):
+def _metric_col(frame, *candidates):
+    for candidate in candidates:
+        if candidate in frame.columns:
+            return candidate
+    return None
+
+
+def _plot_bars(latest, metric_candidates, ylabel, fname):
+    metric = _metric_col(latest, *metric_candidates)
+    if metric is None:
+        return
     plt.figure(figsize=(9.5, 4.5))
     ax = sns.barplot(
         data=latest,
@@ -81,21 +101,27 @@ def _plot_bars(latest, metric, ylabel, fname):
     plt.ylabel(ylabel)
     plt.tight_layout()
     plt.savefig(fname, dpi=150)
-    print(f"saved → {fname}")
+    print(f"saved -> {fname}")
     plt.close()
 
 
 def _summarize_latest(latest):
-    metrics = ["acc", "nll", "ece", "ess"]
+    metric_specs = [
+        ("acc", "test_acc", "acc"),
+        ("nll", "test_nll", "nll"),
+        ("ece", "test_ece", "ece"),
+        ("ess", "ess"),
+    ]
     rows = []
     for name, sub in latest.groupby("method"):
         row = {"method": _label(name), "n_runs": int(sub.shape[0])}
-        for metric in metrics:
-            if metric not in sub.columns:
+        for out_name, *candidates in metric_specs:
+            metric = _metric_col(sub, *candidates)
+            if metric is None:
                 continue
             vals = sub[metric].to_numpy()
-            row[f"{metric}_mean"] = float(np.nanmean(vals))
-            row[f"{metric}_std"] = float(np.nanstd(vals))
+            row[f"{out_name}_mean"] = float(np.nanmean(vals))
+            row[f"{out_name}_std"] = float(np.nanstd(vals))
         rows.append(row)
     return pd.DataFrame(rows)
 
@@ -123,21 +149,27 @@ def _plot_summary_table(summary, fname):
     table.scale(1.0, 1.4)
     plt.tight_layout()
     fig.savefig(fname, dpi=150, bbox_inches="tight")
-    print(f"saved → {fname}")
+    print(f"saved -> {fname}")
     plt.close(fig)
 
 
 def _plot_metric_means_panels(latest, fname):
     if latest.empty:
         return
-    metrics = [("nll", "NLL"), ("ece", "ECE"), ("acc", "Accuracy"), ("ess", "ESS")]
+    metric_specs = [
+        (("test_nll", "nll"), "Test NLL"),
+        (("test_ece", "ece"), "Test ECE"),
+        (("test_acc", "acc"), "Test Accuracy"),
+        (("ess",), "ESS"),
+    ]
     fig, axes = plt.subplots(2, 2, figsize=(13.5, 8.0), sharey=False)
     axes = axes.flatten()
     methods = [m for m in plot_methods if m in latest["method"].unique()]
     x = np.arange(len(methods))
 
-    for ax, (metric, ylabel) in zip(axes, metrics):
-        if metric not in latest.columns:
+    for ax, (metric_candidates, ylabel) in zip(axes, metric_specs):
+        metric = _metric_col(latest, *metric_candidates)
+        if metric is None:
             ax.axis("off")
             continue
         means = []
@@ -163,18 +195,22 @@ def _plot_metric_means_panels(latest, fname):
         ax.set_ylabel(ylabel)
     plt.tight_layout()
     fig.savefig(fname, dpi=150, bbox_inches="tight")
-    print(f"saved → {fname}")
+    print(f"saved -> {fname}")
     plt.close(fig)
 
 
 def _plot_speed_accuracy_scatter(latest, fname):
     if latest.empty or "wall_s" not in latest.columns:
         return
-    metrics = [("nll", "NLL"), ("ece", "ECE")]
+    metric_specs = [(("test_nll", "nll"), "Test NLL"), (("test_ece", "ece"), "Test ECE")]
     fig, axes = plt.subplots(1, 2, figsize=(11.5, 4.5), sharex=False, sharey=False)
     methods = [m for m in plot_methods if m in latest["method"].unique()]
 
-    for ax, (metric, ylabel) in zip(axes, metrics):
+    for ax, (metric_candidates, ylabel) in zip(axes, metric_specs):
+        metric = _metric_col(latest, *metric_candidates)
+        if metric is None:
+            ax.axis("off")
+            continue
         for m in methods:
             sub = latest[latest["method"] == m]
             x_vals = sub["wall_s"].to_numpy()
@@ -211,7 +247,7 @@ def _plot_speed_accuracy_scatter(latest, fname):
     )
     plt.tight_layout(rect=[0, 0.12, 1, 1])
     fig.savefig(fname, dpi=150, bbox_inches="tight")
-    print(f"saved → {fname}")
+    print(f"saved -> {fname}")
     plt.close(fig)
 
 
@@ -227,9 +263,9 @@ def _plot_dataset(csv_path):
         return out_dir / f"{dataset}_{base}.png"
 
     latest = _latest_per_run(df)
-    _plot_bars(latest, "acc", "Accuracy", _fname("acc_bar"))
-    _plot_bars(latest, "nll", "NLL", _fname("nll_bar"))
-    _plot_bars(latest, "ece", "ECE", _fname("ece_bar"))
+    _plot_bars(latest, ("test_acc", "acc"), "Test Accuracy", _fname("acc_bar"))
+    _plot_bars(latest, ("test_nll", "nll"), "Test NLL", _fname("nll_bar"))
+    _plot_bars(latest, ("test_ece", "ece"), "Test ECE", _fname("ece_bar"))
 
     _plot_metric_means_panels(latest, _fname("summary_metric_panels"))
     summary = _summarize_latest(latest)
@@ -241,7 +277,7 @@ def _plot_dataset(csv_path):
 def main():
     csv_files = _load_datasets()
     if not csv_files:
-        print(f"No CSV files found in {METRICS_DIR}")
+        print(f"No CSV files found in {METRICS_DIR} for datasets {ACTIVE_DATASETS}")
         return
     for csv_path in csv_files:
         _plot_dataset(csv_path)
