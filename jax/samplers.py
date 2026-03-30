@@ -4,8 +4,18 @@ import optax
 from functools import partial
 
 # ───────────────────────────────────────────────────────────────────────────
-# RBF kernel + repulsion term
-def rbf_kernel_and_rep(z, min_bw=1e-3, max_bw=1e3, bw_scale=1.0):
+# Pairwise kernels + repulsion terms
+def kernel_and_rep(
+    z,
+    *,
+    kernel="rbf",
+    min_bw=1e-3,
+    max_bw=1e3,
+    bw_scale=1.0,
+    rbf_scales=(0.25, 1.0, 4.0),
+    imq_beta=0.5,
+    imq_c=1.0,
+):
     diff  = z[:, None, :] - z[None, :, :]          # (N,N,D)
     dist2 = jnp.sum(diff**2, axis=-1)              # (N,N)
 
@@ -14,20 +24,59 @@ def rbf_kernel_and_rep(z, min_bw=1e-3, max_bw=1e3, bw_scale=1.0):
     dist2_nodiag = dist2 + jnp.eye(z.shape[0], dtype=z.dtype) * big
 
     median = jnp.median(dist2_nodiag)
-    bw     = jnp.clip(median * bw_scale, min_bw, max_bw)
-    inv_h  = 0.5 / bw
+    bw = jnp.clip(median * bw_scale, min_bw, max_bw)
 
-    K   = jnp.exp(-dist2 * inv_h)
-    rep = -2.0 * inv_h * (K[:, :, None] * diff).sum(axis=1)
-    return K, rep
+    if kernel == "rbf":
+        inv_h = 0.5 / bw
+        K = jnp.exp(-dist2 * inv_h)
+        rep = -2.0 * inv_h * (K[:, :, None] * diff).sum(axis=1)
+        return K, rep
+
+    if kernel == "rbf_multiscale":
+        scales = jnp.asarray(rbf_scales, dtype=z.dtype)
+        bws = jnp.clip(median * scales, min_bw, max_bw)
+        inv_h = 0.5 / bws[:, None, None]
+        K_parts = jnp.exp(-dist2[None, :, :] * inv_h)
+        rep_parts = -2.0 * inv_h[:, :, :, None] * (K_parts[:, :, :, None] * diff[None, :, :, :])
+        K = K_parts.mean(axis=0)
+        rep = rep_parts.sum(axis=2).mean(axis=0)
+        return K, rep
+
+    if kernel == "imq":
+        base = imq_c**2 + dist2 / bw
+        K = base ** (-imq_beta)
+        rep = -(2.0 * imq_beta / bw) * (K[:, :, None] * diff / base[:, :, None]).sum(axis=1)
+        return K, rep
+
+    raise ValueError(f"Unknown kernel '{kernel}'")
+
+
+def rbf_kernel_and_rep(z, min_bw=1e-3, max_bw=1e3, bw_scale=1.0):
+    return kernel_and_rep(z, kernel="rbf", min_bw=min_bw, max_bw=max_bw, bw_scale=bw_scale)
 
 # ───────────────────────────────────────────────────────────────────────────
 # 1) Vanilla Euler SVGD
-def make_svgd_step(logprob_fn, step_size, *, bw_scale=1.0):
+def make_svgd_step(
+    logprob_fn,
+    step_size,
+    *,
+    bw_scale=1.0,
+    kernel="rbf",
+    rbf_scales=(0.25, 1.0, 4.0),
+    imq_beta=0.5,
+    imq_c=1.0,
+):
     @jax.jit
     def step(z, _key):
         grads = jax.grad(lambda x: jnp.sum(logprob_fn(x)))(z)
-        K, rep = rbf_kernel_and_rep(z, bw_scale=bw_scale)
+        K, rep = kernel_and_rep(
+            z,
+            kernel=kernel,
+            bw_scale=bw_scale,
+            rbf_scales=rbf_scales,
+            imq_beta=imq_beta,
+            imq_c=imq_c,
+        )
         z = z + step_size * (K @ grads + rep)
         return z, {
             "grad_evals": jnp.array(1.0, dtype=z.dtype),
@@ -37,12 +86,29 @@ def make_svgd_step(logprob_fn, step_size, *, bw_scale=1.0):
 
 # ───────────────────────────────────────────────────────────────────────────
 # 2) Strang-split / multi-rate SVGD
-def make_strang_svgd_step(logprob_fn, step_size, M=4, *, bw_scale=1.0):
+def make_strang_svgd_step(
+    logprob_fn,
+    step_size,
+    M=4,
+    *,
+    bw_scale=1.0,
+    kernel="rbf",
+    rbf_scales=(0.25, 1.0, 4.0),
+    imq_beta=0.5,
+    imq_c=1.0,
+):
     assert M % 2 == 0
     dt_R = step_size / M
 
     def repulsive(p, dt):
-        _, rep = rbf_kernel_and_rep(p, bw_scale=bw_scale)
+        _, rep = kernel_and_rep(
+            p,
+            kernel=kernel,
+            bw_scale=bw_scale,
+            rbf_scales=rbf_scales,
+            imq_beta=imq_beta,
+            imq_c=imq_c,
+        )
         return p + dt * rep
 
     @jax.jit
@@ -53,7 +119,14 @@ def make_strang_svgd_step(logprob_fn, step_size, M=4, *, bw_scale=1.0):
             z = repulsive(z, dt_R)
         # drift
         grads = jax.grad(lambda x: jnp.sum(logprob_fn(x)))(z)
-        K, _  = rbf_kernel_and_rep(z, bw_scale=bw_scale)
+        K, _ = kernel_and_rep(
+            z,
+            kernel=kernel,
+            bw_scale=bw_scale,
+            rbf_scales=rbf_scales,
+            imq_beta=imq_beta,
+            imq_c=imq_c,
+        )
         z = z + step_size * (K @ grads)
         # second half repulsive
         for _ in range(M // 2 - 1):
@@ -118,10 +191,21 @@ def make_multirate_svgd_step(
         m=4,
         grad_clip=50.0,             # clip ∇log p
         bw_scale=1.0,
+        kernel="rbf",
+        rbf_scales=(0.25, 1.0, 4.0),
+        imq_beta=0.5,
+        imq_c=1.0,
         debug=False):
 
     def _kernel_rep(z):
-        K, rep = rbf_kernel_and_rep(z, bw_scale=bw_scale)          # robust RBF
+        K, rep = kernel_and_rep(
+            z,
+            kernel=kernel,
+            bw_scale=bw_scale,
+            rbf_scales=rbf_scales,
+            imq_beta=imq_beta,
+            imq_c=imq_c,
+        )
         return K, rep
 
     def step(x, _key):
@@ -193,10 +277,21 @@ def make_adaptive_multirate_svgd_step(
         err_tol=1e-2,
         bw_scale=1.0,
         grad_clip=50.0,
+        kernel="rbf",
+        rbf_scales=(0.25, 1.0, 4.0),
+        imq_beta=0.5,
+        imq_c=1.0,
         debug=False):
 
     def _kernel_rep(z):
-        K, rep = rbf_kernel_and_rep(z, bw_scale=bw_scale)
+        K, rep = kernel_and_rep(
+            z,
+            kernel=kernel,
+            bw_scale=bw_scale,
+            rbf_scales=rbf_scales,
+            imq_beta=imq_beta,
+            imq_c=imq_c,
+        )
         return K, rep
 
     def _rms(x):

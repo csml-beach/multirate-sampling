@@ -1,4 +1,5 @@
 # plot_mixture2d.py --------------------------------------------------------
+import argparse
 import os
 from pathlib import Path
 import numpy as np
@@ -54,10 +55,14 @@ def _label(method):
     return METHOD_LABELS.get(method, method)
 
 
-def _load_datasets():
+def _load_datasets(dataset_names=None):
     if not METRICS_DIR.exists():
         raise FileNotFoundError(f"Missing metrics directory: {METRICS_DIR}")
-    return sorted(METRICS_DIR.glob("*.csv"))
+    csvs = sorted(METRICS_DIR.glob("*.csv"))
+    if dataset_names is None:
+        return csvs
+    wanted = set(dataset_names)
+    return [csv_path for csv_path in csvs if csv_path.stem in wanted]
 
 
 def _resolve_xaxis(df, use_kernel_evals):
@@ -235,10 +240,18 @@ def _plot_dataset(csv_path):
     _plot_summary_panels(latest, _fname("summary_metric_panels"))
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="Plot mixture benchmark summaries.")
+    parser.add_argument("--datasets", nargs="*", default=None, help="Optional dataset stems to plot, e.g. mix8 mix8_imq.")
+    return parser.parse_args()
+
+
 def main():
-    csv_files = _load_datasets()
+    args = parse_args()
+    csv_files = _load_datasets(args.datasets)
     if not csv_files:
-        print(f"No CSV files found in {METRICS_DIR}")
+        requested = args.datasets if args.datasets else ['<all>']
+        print(f"No CSV files found in {METRICS_DIR} for {requested}")
         return
     for csv_path in csv_files:
         _plot_dataset(csv_path)
