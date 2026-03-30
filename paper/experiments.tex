@@ -297,12 +297,15 @@ as a supplemental mixing indicator rather than a primary quality metric.
 This benchmark emphasizes multimodal exploration and mass allocation across
 modes. All methods start from the same small Gaussian centered at the origin,
 away from the modal ring, and then run for a fixed budget of 1,000 iterations
-with checkpointing every 20 steps across 5 seeds. We define mode coverage by
-assigning each sample to its nearest mixture center and counting a mode as
-covered once it carries at least 5\% of the empirical mass. The primary metrics
-are mode coverage, normalized mode entropy, and minimum mass per mode; KSD and
-mean log probability are retained as secondary diagnostics, with ESS reported as
-a supplemental mixing proxy.
+with checkpointing every 20 steps across 5 seeds. For this benchmark we use a
+shared multiscale RBF kernel with bandwidth factors $\{0.5,1,2\}$ for all
+particle methods so that local spacing and longer-range repulsion are both
+represented on the modal ring. We define mode coverage by assigning each sample
+to its nearest mixture center and counting a mode as covered once it carries at
+least 5\% of the empirical mass. The primary metrics are mode coverage,
+normalized mode entropy, and minimum mass per mode; KSD and mean log
+probability are retained as secondary diagnostics, with ESS reported as a
+supplemental mixing proxy.
 
 \begin{figure}[t]
   \centering
@@ -328,10 +331,10 @@ a supplemental mixing proxy.
     \toprule
     Method & Coverage$\uparrow$ & Entropy$\uparrow$ & KSD$\downarrow$ \\
     \midrule
-    Adapt-MR-SVGD & 0.400 & 0.461 & 0.317 \\
-    SVGD          & 0.325 & 0.375 & 6153.2 \\
-    Strang-SVGD   & 0.250 & 0.311 & $1.17\times 10^{8}$ \\
-    MR-SVGD       & 0.250 & 0.294 & 77.9 \\
+    Adapt-MR-SVGD & 0.500 & 0.544 & 0.360 \\
+    SVGD          & 0.375 & 0.453 & 3162.9 \\
+    Strang-SVGD   & 0.325 & 0.403 & 3883.0 \\
+    MR-SVGD       & 0.250 & 0.238 & 74.3 \\
     SGHMC         & 0.125 & 0.000 & 2.29 \\
     SGLD          & 0.125 & 0.000 & 2.53 \\
     \bottomrule
@@ -339,19 +342,23 @@ a supplemental mixing proxy.
   \label{tab:mix8_summary}
 \end{table}
 
-Under this harder off-mode initialization, adaptive MR-SVGD gives the strongest
-overall multimodal exploration at the fixed budget, attaining the highest mean
-final mode coverage and mode entropy across seeds; \cref{tab:mix8_summary}
-provides the corresponding mean-over-seeds summary, while
-\cref{fig:mix8_summary} carries the cross-seed variability. Vanilla SVGD
-occasionally reaches comparable coverage on individual seeds, but does so with
-extremely poor KSD and mean log probability, indicating unstable mass
-allocation rather than reliable exploration. Fixed MR-SVGD improves over the
-chain baselines but does not match the adaptive variant. SGLD and SGHMC remain
-trapped in a single mode, with final coverage fixed at $0.125$ and zero mode
-entropy. The minimum mass statistic is zero for all methods at this budget, so
-in this redesigned benchmark coverage and entropy are the informative
-multimodal diagnostics while KSD remains a secondary stability measure.
+Under this harder off-mode initialization, adaptive MR-SVGD still gives the
+strongest overall multimodal exploration at the fixed budget, now reaching the
+highest mean final mode coverage and mode entropy across seeds
+($0.500$ and $0.544$, respectively); \cref{tab:mix8_summary} provides the
+corresponding mean-over-seeds summary, while \cref{fig:mix8_summary} carries
+the cross-seed variability. The shared multiscale kernel also makes the
+single-rate particle baselines more competitive than under the plain single-RBF
+setting: vanilla SVGD and Strang-SVGD both cover more modes and attain higher
+mode entropy, but their KSD values remain far worse than the adaptive method,
+so the extra spread still comes with much weaker stability. Fixed MR-SVGD
+remains stable and slightly improves its KSD over the single-RBF version, but
+it does not match the adaptive variant on the main multimodal metrics. SGLD and
+SGHMC remain trapped in a single mode, with final coverage fixed at $0.125$ and
+zero mode entropy. The minimum mass statistic is zero for all methods at this
+budget, so in this redesigned benchmark coverage and entropy are the
+informative multimodal diagnostics while KSD remains a secondary stability
+measure.
 
 \subsection{UCI logistic regression}
 

@@ -100,8 +100,8 @@ Notes:
 
 Notes:
 - Uses a one-hidden-layer Bayesian neural network.
-- Default datasets: `breast_cancer`, `ionosphere`, `a5a`.
-- KSD-based early stopping is enabled by default.
+- Default datasets: `spambase`, `a5a`.
+- Benchmark uses a fixed split with validation-NLL early stopping and reports test metrics at the best validation checkpoint.
 
 ## 2D Mixture (mix8)
 
@@ -117,8 +117,10 @@ python jax/benchmarks/mixture2d/animate_mixture2d.py --target mix8 --all-methods
 ```
 
 Notes:
+- Default paper configuration uses a shared multiscale RBF kernel with scales `0.5 1 2`.
+- Benchmark is fixed-budget, not early-stopped.
 - Metrics include mode coverage, mode entropy, min mass per mode, KSD, and grid L1.
-- Benchmark uses KSD-based early stopping with best-checkpoint restoration.
+- RBF and IMQ ablations remain available via `--particle-kernel rbf` and `--particle-kernel imq`; their outputs are written to `mix8_rbf*` and `mix8_imq*`.
 
 ## HLR (Hierarchical Logistic Regression)
 
