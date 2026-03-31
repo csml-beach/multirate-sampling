@@ -22,14 +22,21 @@ where $h>0$ is a step size and the SVGD velocity field is
 The first term in \cref{eq:svgd-velocity} is an \emph{attractive} drift that
 pushes particles toward high-density regions via the score $\nabla \log p$. The second term is a \emph{repulsive} interaction that discourages particle collapse.
 
-Throughout this paper, we limit our focus to an RBF kernel
+For derivation and notation, we write the method with a single RBF kernel
 \begin{equation}
   k(x, y) = \exp\Big(-\frac{\|x-y\|_2^2}{2\,h_k}\Big),
   \label{eq:svgd-rbf-kernel}
 \end{equation}
-where the bandwidth $h_k$.\footnote{The bandwidth $h_k$ is set by the median heuristic (the median pairwise
-squared distance among particles) and scaled by a factor $\alpha>0$ to modulate
-the strength of repulsion.}
+where the bandwidth $h_k$ is chosen by the median heuristic (the median
+pairwise squared distance among particles) and scaled by a factor $\alpha>0$
+to modulate repulsion strength. Most experiments use this single-kernel form.
+For the Mix8 multimodal benchmark we additionally consider a shared multiscale
+RBF variant to test whether broader particle interactions improve mode
+exploration; the drift--repulsion splitting and multirate updates are otherwise
+unchanged.
+More generally, once the attractive and repulsive fields are defined, the
+multirate constructions below are agnostic to the particular admissible kernel
+family used to build those fields.
 
 \subsection{Drift--repulsion splitting and multirate integration}
 
@@ -56,14 +63,16 @@ macro-step size $h$.
 
 \paragraph{Strang-split SVGD}
 
- We can define the forward Euler steps that advances the split system forward by a stepsize $\tau$ as: 
+Define the forward Euler maps that advance the split system by a step size
+$\tau$:
 \begin{equation*}
   \Psi_{\text{rep}}^{\tau}(x) = x + \tau f_{\text{rep}}(x),
   \qquad
   \Psi_{\text{drift}}^{\tau}(x) = x + \tau f_{\text{drift}}(x).
 \end{equation*}
 \emph{Strang
-splitting} \cite{strang1968difference}  is a classical second order method taht construct a macro-step of size $h$ by composing such
+splitting} \cite{strang1968difference} is a classical second-order method that
+constructs a macro-step of size $h$ by composing such
 substeps. In our setting, one macro step takes the form
 \begin{equation}
   x^{t+1}
@@ -71,7 +80,8 @@ substeps. In our setting, one macro step takes the form
   \label{eq:strang-split-svgd}
 \end{equation}
 which alternates half a repulsion step, a full drift step, and another half
-repulsion step. In practice the half-steps can in fact be implemented as $\frac{h}{2m}$ smaller substeps for stability.
+repulsion step. In practice, the half-steps can be implemented as
+$\frac{h}{2m}$ smaller substeps for stability.
 
 \paragraph{Fixed multirate SVGD (MR-SVGD)}
 Fixed multirate integrators provide a principled way to allocate different step
@@ -104,10 +114,10 @@ corresponding implementation-level procedure is summarized in
 \Require Particles $\{x_i\}_{i=1}^N$, step size $h$, repulsion substeps $m$, kernel $k$
 \State $x \leftarrow \{x_i\}$
 \For{$s=1$ to $m$}
-  \State compute repulsion $f_{\text{rep}}(x)$ using \cref{eq:svgd-velocity}
+  \State compute repulsion $f_{\text{rep}}(x)$ using \cref{eq:svgd-rep-term}
   \State $x \leftarrow x + (h/m)\,f_{\text{rep}}(x)$
 \EndFor
-\State compute drift $f_{\text{drift}}(x)$ using \cref{eq:svgd-velocity}
+\State compute drift $f_{\text{drift}}(x)$ using \cref{eq:svgd-drift-term}
 \State $x \leftarrow x + h\,f_{\text{drift}}(x)$
 \State \Return $x$
 \end{algorithmic}

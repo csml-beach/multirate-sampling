@@ -26,7 +26,7 @@ Gaussian and synthetic-target settings.
 \paragraph{Stein discrepancy}
 For distributional fidelity, we use kernel Stein discrepancy (KSD) with score
 $s_p(x)=\nabla_x \log p(x)$ and an RBF base kernel $k_h(\cdot,\cdot)$
-\cite{liu2016ksd}. The corresponding Stein kernel is
+\cite{liu2016ksd,pmlr-v70-gorham17a}. The corresponding Stein kernel is
 \begin{equation}
 \begin{aligned}
 \kappa_p(x,x')={}&s_p(x)^\top s_p(x')\,k_h(x,x')
@@ -44,7 +44,7 @@ and the empirical discrepancy is
 \end{equation}
 Under standard kernel conditions, KSD is zero only at the target law and
 increases under global mismatch, including location bias, covariance distortion,
-and mode omission \cite{liu2016ksd}.
+and mode omission \cite{liu2016ksd,pmlr-v70-gorham17a}.
 
 \paragraph{Mean log-density fit}
 We complement KSD with the empirical mean log-density
@@ -69,9 +69,11 @@ This combination separates discrimination (accuracy), probabilistic sharpness
 (NLL), and calibration quality (ECE).
 
 \paragraph{Mode-structure diagnostics}
-For mixture and grid-based 2D targets, we report mode coverage, normalized mode
-entropy, minimum mode mass, and grid $L_1$ discrepancy to detect mode collapse
-and quantify spatial mismatch with reference densities.
+For structured multimodal targets, we report mode coverage, normalized mode
+entropy, and mode imbalance to detect mode collapse and uneven mass allocation;
+minimum mode mass is retained as a secondary check when informative. For the 2D
+synthetic targets, we additionally retain grid $L_1$ discrepancy and moment
+diagnostics as secondary spatial mismatch measures.
 
 \paragraph{Cost accounting}
 In addition to wall-clock time, we track gradient- and kernel-evaluation counts
@@ -140,7 +142,7 @@ compute metrics from a rolling window of recent iterates to obtain comparable
 finite-sample summaries. Alongside wall-clock time, we report gradient- and
 kernel-evaluation counts as hardware-agnostic measures of computational cost.
 
-All benchmarks use checkpointed evaluation at interval \texttt{save\_every} and
+All benchmarks use checkpointed evaluation at a benchmark-specific interval and
 a patience-based early-stopping rule triggered by persistent degradation of a
 designated monitor metric. Pure sampling benchmarks use KSD as the monitor (50D
 Gaussian, 2D synthetic targets, and Mixture2D), whereas predictive benchmarks
@@ -184,6 +186,16 @@ probability.
   \label{fig:gauss50_walltime}
 \end{figure}
 
+Among the particle methods, Adapt-MR-SVGD is the only variant that keeps both
+moment errors and KSD under control in this anisotropic Gaussian setting: it
+substantially improves on MR-SVGD and avoids the severe degradation exhibited by
+vanilla SVGD and Strang-SVGD. The chain baselines remain competitive on some
+final-checkpoint fidelity metrics, but they do so with ESS near $4$, far below
+the particle methods. The main lesson of this benchmark is therefore numerical
+rather than absolute: multirate treatment is critical for maintaining stable,
+informative particle behavior once drift and repulsion interact through strong
+anisotropy.
+
 \subsection{2D synthetic targets}
 
 We evaluate banana, ring, squiggly, two-moons, and funnel targets over five
@@ -195,8 +207,7 @@ density-concentration score, gradient/kernel evaluations and wall time as cost
 metrics, and ESS as a supplemental mixing proxy. Moment errors and grid-based
 $L_1$ discrepancy are retained as diagnostics, but they are not used in the
 main 2D summary table. To contextualize the geometry of these targets, we also
-show short-run visualization panels for representative cases; additional target
-panels can be appended in the same format.
+show short-run visualization panels for representative cases.
 
 \begin{figure}[t]
   \centering
@@ -300,22 +311,27 @@ away from the modal ring, and then run for a fixed budget of 1,000 iterations
 with checkpointing every 20 steps across 5 seeds. For this benchmark we use a
 shared multiscale RBF kernel with bandwidth factors $\{0.5,1,2\}$ for all
 particle methods so that local spacing and longer-range repulsion are both
-represented on the modal ring. We define mode coverage by assigning each sample
+represented on the modal ring. We treat this as an experimental kernel-choice
+ablation rather than a change to the multirate update itself; prior SVGD work
+has also considered broader kernel families beyond a single scalar RBF
+\cite{wang2019matrixsvgd,stordal2021pkernel}. We define mode coverage by assigning each sample
 to its nearest mixture center and counting a mode as covered once it carries at
 least 5\% of the empirical mass. The primary metrics are mode coverage,
-normalized mode entropy, and minimum mass per mode; KSD and mean log
+normalized mode entropy, and mode imbalance; KSD and mean log
 probability are retained as secondary diagnostics, with ESS reported as a
-supplemental mixing proxy.
+supplemental mixing proxy. Here imbalance is computed from the same
+nearest-center empirical mode masses and measures deviation from uniform mass
+allocation across the eight modes.
 
 \begin{figure}[t]
   \centering
   \safeincludegraphics[width=0.9\linewidth]{../figures/mixture2d/mix8/mix8_summary_metric_panels.png}
   \caption{Mixture2D (mix8) fixed-budget final-checkpoint summary across methods.
   The four
-  panels report mode coverage, mode entropy, minimum mass per mode, and KSD;
+  panels report mode coverage, mode entropy, mode imbalance, and KSD;
   markers show mean values across seeds and error bars indicate one standard
-  deviation. Higher is better for coverage, entropy, and minimum mass per mode,
-  while lower is better for KSD.}
+  deviation. Higher is better for coverage and entropy, while lower is better
+  for mode imbalance and KSD.}
   \label{fig:mix8_summary}
 \end{figure}
 
@@ -353,12 +369,14 @@ setting: vanilla SVGD and Strang-SVGD both cover more modes and attain higher
 mode entropy, but their KSD values remain far worse than the adaptive method,
 so the extra spread still comes with much weaker stability. Fixed MR-SVGD
 remains stable and slightly improves its KSD over the single-RBF version, but
-it does not match the adaptive variant on the main multimodal metrics. SGLD and
-SGHMC remain trapped in a single mode, with final coverage fixed at $0.125$ and
-zero mode entropy. The minimum mass statistic is zero for all methods at this
-budget, so in this redesigned benchmark coverage and entropy are the
-informative multimodal diagnostics while KSD remains a secondary stability
-measure.
+it does not match the adaptive variant on the main multimodal metrics. The
+imbalance panel in \cref{fig:mix8_summary} complements coverage and entropy by
+showing that the adaptive method also allocates mass more evenly across the
+discovered modes. SGLD and SGHMC remain trapped in a single mode, with final
+coverage fixed at $0.125$ and zero mode entropy. The minimum mass statistic is
+still zero for all methods at this budget, so in this redesigned benchmark
+coverage, entropy, and imbalance are the informative multimodal diagnostics
+while KSD remains a secondary stability measure.
 
 \subsection{UCI logistic regression}
 
@@ -459,6 +477,16 @@ selected under the global predictive stopping policy
   \label{tab:uci_nll_summary}
 \end{table}
 
+UCI logistic regression serves mainly as a predictive sanity check rather than
+as the flagship evidence for multirate gains. The rankings are mixed.
+Adapt-MR-SVGD gives the best overall NLL on breast\_cancer, while on
+ionosphere, spambase, and a5a either SGHMC or a single-rate particle method is
+competitive or superior. This weaker separation is consistent with the main
+claim of the paper: multirate benefits are most pronounced on anisotropic,
+multimodal, or hierarchical posteriors, whereas lower-dimensional logistic
+regression tasks show smaller and less uniform gains. On the smaller datasets,
+accuracy is also tightly quantized, so NLL is the more discriminative summary.
+
 \subsection{Bayesian neural network}
 
 We evaluate a one-hidden-layer BNN (hidden width 32) on spambase and a5a,
@@ -533,7 +561,7 @@ the second-best particle method ($0.347$), and the single-rate particle
 variants are again worse. The chain baselines are competitive in isolated
 cases---SGHMC on spambase and SGLD on a5a---but the multirate particle methods
 form the strongest pair overall across the two datasets. This makes the BNN
-benchmark supportive rather than decisive: multirate structure improves
+benchmark corroborative rather than primary evidence: multirate structure improves
 predictive quality over the single-rate particle baselines, but the preferred
 multirate variant depends on the dataset.
 
@@ -542,8 +570,8 @@ multirate variant depends on the dataset.
 To stress-test multirate behavior in a high-dimensional anisotropic posterior,
 we use a large-scale hierarchical logistic regression benchmark with grouped
 random effects. The model combines high parameter dimension with funnel-like
-geometry induced by a global scale parameter, making it a natural timing-quality
-test bed for SVGD variants.
+geometry induced by a global scale parameter, making it a natural benchmark for
+joint quality-cost assessment of SVGD variants.
 
 \paragraph{Problem definition}
 Given binary outcomes $y_i\in\{0,1\}$, sparse features $x_i\in\mathbb{R}^p$, and

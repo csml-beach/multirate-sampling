@@ -171,7 +171,7 @@ def _plot_summary_panels(latest, fname):
     metrics = [
         ("coverage", "Mode coverage"),
         ("entropy", "Mode entropy"),
-        ("min_mass", "Min mass per mode"),
+        ("imbalance", "Mode imbalance"),
         ("ksd", "KSD"),
     ]
     fig, axes = plt.subplots(2, 2, figsize=(12.5, 7.5), sharey=False)

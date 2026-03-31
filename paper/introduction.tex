@@ -2,7 +2,7 @@
 
 \label{sec:introduction}
 
-Modern Bayesian inference often requires efficient sampling from complex, high-dimensional, and multimodal posterior distributions. As these problems grow in scale and complexity, traditional sampling methods face significant computational and statistical challenges. The advent of automatic differentiation has enabled the widespread use of gradient-based samplers, making methods such as stochastic gradient Langevin dynamics (SGLD) and stochastic gradient Hamiltonian Monte Carlo (SGHMC) practical and popular choices for large-scale applications \cite{welling2011sgld,chen2014sghmc}. While these approaches advance a single Markov chain using noisy gradients, an alternative paradigm is offered by interacting particle methods, which evolve a population of particles whose empirical distribution approximates the target posterior. This population-based perspective opens new avenues for improving sampling efficiency and robustness, especially in challenging inference settings.
+Modern Bayesian inference often requires efficient sampling from complex, high-dimensional, and multimodal posterior distributions. As these problems grow in scale and complexity, traditional sampling methods face significant computational and statistical challenges. The advent of automatic differentiation has enabled the widespread use of gradient-based samplers, making methods such as stochastic gradient Langevin dynamics (SGLD) and stochastic gradient Hamiltonian Monte Carlo (SGHMC) practical and popular choices for large-scale applications \cite{welling2011sgld,chen2014sghmc}. While these approaches advance a single Markov chain using noisy gradients, an alternative paradigm is offered by interacting particle methods, which evolve a population of particles whose empirical distribution approximates the target posterior. This population-based view is central to particle-based variational inference (ParVI), which interprets interacting particle systems as finite-particle transport approximations on probability measures \cite{pmlr-v97-liu19i}. Within this class, SVGD is a prominent deterministic representative, and recent work has examined acceleration, particle degeneracy, and kernel design in related Stein-particle methods \cite{pmlr-v97-liu19i,pmlr-v80-zhuo18a,wang2019matrixsvgd}. It opens new avenues for improving sampling efficiency and robustness, especially in challenging inference settings.
 
 A useful unifying perspective is to view many such methods as discretizations
 
@@ -17,7 +17,15 @@ step size must therefore balance competing requirements and can either
 over-damp repulsion (leading to loss of diversity and mode coverage) or
 under-resolve drift (leading to slow progress). Moreover, repulsion typically
 requires $O(N^2)$ kernel evaluation per step, so increasing stability by
-oversampling repulsion can become computationally expensive.
+oversampling repulsion can become computationally expensive. These numerical
+tensions interact with a known statistical pathology of SVGD-type methods:
+repulsive forces can weaken in high dimensions or under limited particle
+resolution, leading to particle collapse and poor support of multiple modes
+\cite{pmlr-v80-zhuo18a,pmlr-v108-zhang20d}.
+In practice, the resulting single-step-size compromise is both statistically and
+computationally inefficient: it can degrade support coverage and predictive
+quality while still spending substantial kernel work to stabilize the wrong part
+of the update.
 
 
 A common approach to solving systems with significantly different 
@@ -47,9 +55,9 @@ Our main contributions are:
   and support symmetric splitting and fixed multirate schedules.
   \item An adaptive error-controlled multirate SVGD variant that selects drift
   substeps based on a local error estimator while keeping repulsion stable.
-  \item A benchmark suite spanning 50D, 2D, UCI, mixture, and BNN targets, with
-  diagnostics (KSD, ESS, mode coverage) and KSD-based early stopping, and with
-  gradient/kernel evaluation accounting for efficiency comparisons.
+  \item A benchmark suite spanning 50D, 2D, UCI, mixture, BNN, and HLR targets,
+  with task-appropriate diagnostics, early stopping, and gradient/kernel
+  evaluation accounting for efficiency comparisons.
 \end{itemize}
 
 \paragraph{Organization.}
