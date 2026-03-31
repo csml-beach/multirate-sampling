@@ -13,7 +13,7 @@
 \usepackage{cleveref}
 \theoremstyle{remark}
 \newtheorem{remark}{Remark}
-\journal{Journal Name}
+\journal{Journal of Computational Science}
 
 \makeatletter
 \newcommand{\safeincludegraphics}[2][]{%
@@ -32,8 +32,10 @@
 
 \title{Multirate Stein Variational Gradient Descent for Efficient Bayesian Sampling}
 
-\author{Arash Sarshar}
-\address{California State University, Long Beach}
+\author[inst1]{Arash Sarshar\corref{cor1}}
+\ead{arash.sarshar@csulb.edu}
+\cortext[cor1]{Corresponding author}
+\address[inst1]{Department of Computer Engineering and Computer Science, California State University, Long Beach, 90840, CA, USA}
 
 \begin{abstract}
 \input{abstract}
@@ -49,6 +51,7 @@ Stein variational gradient descent \sep multirate integration \sep particle meth
 \input{method}
 \input{experiments}
 \input{conclusions}
+\input{data_availability}
 \input{acknowledgments}
 
 \bibliographystyle{elsarticle-num}

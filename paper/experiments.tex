@@ -152,6 +152,13 @@ and ECE are reported for predictive tasks but are never used as stopping
 triggers. Benchmarks with pronounced numerical instability add a short
 non-finite fail-fast guard; we note those cases locally.
 
+Across the full benchmark suite, the recurring pattern is that multirate SVGD
+variants improve robustness relative to vanilla SVGD, with the largest gains on
+anisotropic, hierarchical, and multimodal targets. Fixed multirate SVGD serves
+as a cheaper robustness baseline, while adaptive multirate SVGD usually
+delivers the strongest quality-cost tradeoff when local stiffness varies along
+the trajectory.
+
 \subsection{50D Gaussian}
 
 This benchmark stresses stability in a high-dimensional setting with anisotropic
@@ -175,15 +182,10 @@ probability.
   report $\|\hat{\mu}-\mu\|_2$, $\|\hat{\Sigma}-\Sigma\|_F$, KSD, and ESS,
   respectively; markers show mean values across seeds and error bars indicate
   one standard deviation. Lower is better for the first three metrics, whereas
-  higher is better for ESS.}
+  higher is better for ESS. This figure highlights robustness differences under
+  strong anisotropy: Adapt-MR-SVGD is the only particle variant that keeps both
+  moment errors and KSD under control.}
   \label{fig:gauss50_summary}
-\end{figure}
-
-\begin{figure}[t]
-  \centering
-  \safeincludegraphics[width=0.9\linewidth]{../figures/50d/walltime_overview.png}
-  \caption{50D Gaussian: wall-time overview across key metrics.}
-  \label{fig:gauss50_walltime}
 \end{figure}
 
 Among the particle methods, Adapt-MR-SVGD is the only variant that keeps both
@@ -194,7 +196,9 @@ final-checkpoint fidelity metrics, but they do so with ESS near $4$, far below
 the particle methods. The main lesson of this benchmark is therefore numerical
 rather than absolute: multirate treatment is critical for maintaining stable,
 informative particle behavior once drift and repulsion interact through strong
-anisotropy.
+anisotropy. Within the particle family, MR-SVGD offers a cheaper but less
+accurate fixed-schedule baseline, whereas Adapt-MR-SVGD achieves the strongest
+quality at a higher computational cost.
 
 \subsection{2D synthetic targets}
 
@@ -275,7 +279,9 @@ show short-run visualization panels for representative cases.
   probability is reported as a secondary score, ESS as a supplemental mixing
   indicator, and gradient evaluations / wall time as cost metrics. Moment
   errors and grid $L_1$ remain diagnostic quantities and are omitted from this
-  main summary.}
+  main summary. The main pattern is that Adapt-MR-SVGD is the only zero-failure
+  particle method and gives the best overall KSD across the suite, while banana
+  shows little separation and funnel remains a nuanced exception.}
   \label{tab:2d_summary}
 \end{table}
 
@@ -342,7 +348,9 @@ allocation across the eight modes.
   \caption{Mixture2D (mix8) mean final metrics over five seeds at the fixed
   1,000-iteration budget. Higher is better for coverage and entropy; lower is
   better for KSD. We omit minimum mass because it is zero for all methods at
-  this budget.}
+  this budget. This table summarizes the fixed-budget multimodal result:
+  Adapt-MR-SVGD gives the strongest overall exploration, while vanilla and
+  Strang spread more than MR-SVGD but remain far less stable by KSD.}
   \begin{tabular}{lrrr}
     \toprule
     Method & Coverage$\uparrow$ & Entropy$\uparrow$ & KSD$\downarrow$ \\
@@ -640,7 +648,10 @@ stopping trigger.
   select the best finite-NLL checkpoint; the table reports method-wise means of
   that best NLL, the accuracy at that checkpoint, and the corresponding wall
   time. ``Seeds with finite best''
-  counts runs that reached at least one finite-NLL checkpoint before stopping.}
+  counts runs that reached at least one finite-NLL checkpoint before stopping.
+  This table is the main hierarchical stress test: Adapt-MR-SVGD achieves the
+  best best-NLL while remaining finite on all seeds, and MR-SVGD is the
+  closest lower-cost baseline.}
   \label{tab:hlr_longtail_summary}
 \end{table}
 

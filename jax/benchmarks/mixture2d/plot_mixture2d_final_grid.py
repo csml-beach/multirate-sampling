@@ -75,6 +75,20 @@ METHOD_COLORS = {
 }
 
 
+def _grid_shape(n_methods):
+    if n_methods == 1:
+        return 1, 1
+    if n_methods == 2:
+        return 1, 2
+    if n_methods <= 4:
+        return 2, 2
+    return 2, 3
+
+
+def _figsize(n_rows, n_cols):
+    return (5.0 * n_cols, 4.9 * n_rows)
+
+
 def _format_ksd(value):
     if not np.isfinite(value):
         return "nan"
@@ -234,7 +248,19 @@ def _default_outputs(seed, particle_kernel):
     )
 
 
-def make_mix8_grid(seed, out_png, out_csv, *, particle_kernel, bw_scale, rbf_scales, imq_beta, imq_c):
+def make_mix8_grid(
+    seed,
+    out_png,
+    out_csv,
+    *,
+    methods,
+    particle_kernel,
+    bw_scale,
+    rbf_scales,
+    imq_beta,
+    imq_c,
+    show_title,
+):
     logp, centers, bounds = get_target("mix8")
     score_fn = lambda x: jax.grad(lambda y: jnp.sum(logp(y)))(x)
 
@@ -254,12 +280,13 @@ def make_mix8_grid(seed, out_png, out_csv, *, particle_kernel, bw_scale, rbf_sca
         imq_c=imq_c,
     )
     results = []
-    for method in METHODS:
+    for method in methods:
         state, step_fn, is_chain = samplers[method]
         results.append(_run_method(method, state, step_fn, is_chain, logp, centers, score_fn, seed))
 
-    fig, axes = plt.subplots(2, 3, figsize=(15, 10), constrained_layout=True)
-    axes = axes.ravel()
+    n_rows, n_cols = _grid_shape(len(results))
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=_figsize(n_rows, n_cols), constrained_layout=True)
+    axes = np.atleast_1d(axes).ravel()
 
     for ax, result in zip(axes, results):
         _make_background(ax, logp, bounds)
@@ -300,14 +327,18 @@ def make_mix8_grid(seed, out_png, out_csv, *, particle_kernel, bw_scale, rbf_sca
             bbox={"facecolor": "white", "alpha": 0.85, "edgecolor": "0.8", "boxstyle": "round,pad=0.25"},
         )
 
-    for i, ax in enumerate(axes):
-        if i % 3 == 0:
+    for i, ax in enumerate(axes[: len(results)]):
+        if i % n_cols == 0:
             ax.set_ylabel(r"$x_2$")
-        if i >= 3:
+        if i >= (n_rows - 1) * n_cols:
             ax.set_xlabel(r"$x_1$")
 
+    for ax in axes[len(results) :]:
+        ax.axis("off")
+
     kernel_label = {"rbf": "RBF", "imq": "IMQ", "rbf_multiscale": "Multi-scale RBF"}[particle_kernel]
-    fig.suptitle(rf"Mix8 final-budget comparison ({kernel_label} kernel, seed {seed}, 1000 steps)", fontsize=18)
+    if show_title:
+        fig.suptitle(rf"Mix8 final-budget comparison ({kernel_label} kernel, seed {seed}, 1000 steps)", fontsize=18)
 
     out_png.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_png, dpi=180, bbox_inches="tight")
@@ -330,6 +361,8 @@ def main():
     parser.add_argument("--rbf-scales", nargs="+", type=float, default=list(DEFAULT_RBF_SCALES))
     parser.add_argument("--imq-beta", type=float, default=0.5)
     parser.add_argument("--imq-c", type=float, default=1.0)
+    parser.add_argument("--methods", nargs="+", choices=METHODS, default=METHODS)
+    parser.add_argument("--no-title", action="store_true", help="Suppress the figure suptitle for paper use.")
     parser.add_argument("--out", default=None, help="Output image path.")
     parser.add_argument("--summary-csv", default=None, help="Output CSV path for final metrics.")
     args = parser.parse_args()
@@ -341,11 +374,13 @@ def main():
         args.seed,
         out_png,
         out_csv,
+        methods=args.methods,
         particle_kernel=args.particle_kernel,
         bw_scale=args.bw_scale,
         rbf_scales=tuple(args.rbf_scales),
         imq_beta=args.imq_beta,
         imq_c=args.imq_c,
+        show_title=not args.no_title,
     )
 
 

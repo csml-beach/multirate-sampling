@@ -180,5 +180,6 @@ paper/*.blg
 paper/*.fdb_latexmk
 paper/*.fls
 paper/*.spl
+paper/submission/
 jax/benchmarks/2d/targets_2d_cache/
 jax/targets_2d_cache/

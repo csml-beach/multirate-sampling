@@ -1,22 +1,20 @@
 \section{Conclusions}
 \label{sec:conclusions}
 
-This work reframes SVGD as a numerically split interacting-particle flow in
-which attraction to high-density regions and diversity-preserving repulsion are
-treated as distinct computational components. From this viewpoint, multirate
-integration is not only an efficiency heuristic but a practical mechanism for
-improving stability in posterior geometries where these components evolve at
-different effective scales.
+This work studies a central numerical weakness of SVGD: a single global step
+size must simultaneously resolve attractive drift and diversity-preserving
+repulsion even when these components evolve on different effective time scales.
+We address this mismatch by recasting SVGD as a split interacting-particle flow
+and integrating the drift and repulsion terms with multirate updates.
 
 Across a broad benchmark suite, the main empirical pattern is that multirate
-formulations make SVGD behavior more reliable under difficult geometry,
-especially in high-dimensional anisotropic settings and hierarchical models.
-Fixed multirate schedules provide a strong robustness baseline, while adaptive
-drift resolution offers additional flexibility when local stiffness changes
-along the trajectory. At the same time, results indicate that no single variant
-dominates every metric and every regime, reinforcing the importance of
-evaluating quality and cost jointly rather than through a single summary
-statistic.
+SVGD improves robustness and quality-cost tradeoffs relative to vanilla SVGD,
+with the strongest gains on anisotropic, multimodal, and hierarchical targets.
+Fixed multirate schedules provide a simpler robustness baseline, while adaptive
+drift resolution offers the strongest performance when local stiffness changes
+along the trajectory. At the same time, no single variant dominates every
+metric and every regime, reinforcing the importance of evaluating quality and
+cost jointly rather than through a single summary statistic.
 
 Several limitations remain. Current adaptivity is centered on drift resolution,
 while repulsion frequency is still controlled by simple schedules; ESS remains a
