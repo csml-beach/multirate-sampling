@@ -4,17 +4,6 @@
 
 Code accompanying the multirate SVGD submission. The repository implements fixed and adaptive multirate SVGD variants, compares them against particle and stochastic-gradient MCMC baselines, and evaluates quality-cost tradeoffs across synthetic and UCI tasks.
 
-## Highlights
-
-- Core JAX samplers: `SVGD`, `Strang-SVGD`, `MR-SVGD`, `Adapt-MR-SVGD`, `SGLD`, `SGHMC`.
-- Benchmarks: 50D Gaussian, 2D targets, UCI logistic regression, UCI BNN, 2D mixture (`mix8`), and large-scale HLR (longtail/uniform groups).
-- Unified CSV metrics and plotting scripts used for manuscript figures.
-- Paper source in `paper/`.
-
-## 2D Demo Animations
-
-Representative short-run 2D demos under `Adapt-MR-SVGD`.
-
 <table>
   <tr>
     <td align="center">
@@ -38,8 +27,14 @@ Representative short-run 2D demos under `Adapt-MR-SVGD`.
   </tr>
 </table>
 
-Additional generated animations are produced under the DVC-managed
-`animations/` directory during benchmark and visualization runs.
+
+## Highlights
+
+- Core JAX samplers: `SVGD`, `Strang-SVGD`, `MR-SVGD`, `Adapt-MR-SVGD`, `SGLD`, `SGHMC`.
+- Benchmarks: 50D Gaussian, 2D targets, UCI logistic regression, UCI BNN, 2D mixture (`mix8`), and large-scale HLR (longtail/uniform groups).
+- Unified CSV metrics and plotting scripts used for manuscript figures.
+- Paper source in `paper/`.
+
 
 ## Repository Layout
 
