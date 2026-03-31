@@ -11,6 +11,36 @@ Code accompanying the multirate SVGD submission. The repository implements fixed
 - Unified CSV metrics and plotting scripts used for manuscript figures.
 - Paper source in `paper/`.
 
+## 2D Demo Animations
+
+Representative short-run 2D demos under `Adapt-MR-SVGD`.
+
+<table>
+  <tr>
+    <td align="center">
+      <img src="docs/assets/readme/banana.webp" width="180" alt="Banana demo animation"><br>
+      <sub>Banana</sub>
+    </td>
+    <td align="center">
+      <img src="docs/assets/readme/squiggly.webp" width="180" alt="Squiggly demo animation"><br>
+      <sub>Squiggly</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <img src="docs/assets/readme/two_moons.webp" width="180" alt="Two Moons demo animation"><br>
+      <sub>Two Moons</sub>
+    </td>
+    <td align="center">
+      <img src="docs/assets/readme/ring.webp" width="180" alt="Ring demo animation"><br>
+      <sub>Ring</sub>
+    </td>
+  </tr>
+</table>
+
+Additional generated animations are produced under the DVC-managed
+`animations/` directory during benchmark and visualization runs.
+
 ## Repository Layout
 
 - `jax/samplers.py`: sampler implementations.
