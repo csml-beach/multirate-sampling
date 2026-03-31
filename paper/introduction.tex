@@ -2,36 +2,43 @@
 
 \label{sec:introduction}
 
-Modern Bayesian inference often requires efficient sampling from complex, high-dimensional, and multimodal posterior distributions. As these problems grow in scale and complexity, traditional sampling methods face significant computational and statistical challenges. The advent of automatic differentiation has enabled the widespread use of gradient-based samplers, making methods such as stochastic gradient Langevin dynamics (SGLD) and stochastic gradient Hamiltonian Monte Carlo (SGHMC) practical and popular choices for large-scale applications \cite{welling2011sgld,chen2014sghmc}. While these approaches advance a single Markov chain using noisy gradients, an alternative paradigm is offered by interacting particle methods, which evolve a population of particles whose empirical distribution approximates the target posterior. This population-based view is central to particle-based variational inference (ParVI), which interprets interacting particle systems as finite-particle transport approximations on probability measures \cite{pmlr-v97-liu19i}. Within this class, SVGD is a prominent deterministic representative, and recent work has examined acceleration, particle degeneracy, and kernel design in related Stein-particle methods \cite{pmlr-v97-liu19i,pmlr-v80-zhuo18a,wang2019matrixsvgd}. It opens new avenues for improving sampling efficiency and robustness, especially in challenging inference settings.
+Modern Bayesian inference often requires efficient sampling from complex, high-dimensional, and multimodal posterior distributions. As these problems grow in scale and complexity, traditional sampling methods face significant computational and statistical challenges. The advent of automatic differentiation has enabled the widespread use of gradient-based samplers, making methods such as stochastic gradient Langevin dynamics (SGLD) and stochastic gradient Hamiltonian Monte Carlo (SGHMC) practical and popular choices for large-scale applications \cite{welling2011sgld,chen2014sghmc}. While these approaches advance a single Markov chain using noisy gradients, an alternative paradigm is offered by interacting particle methods, which evolve a population of particles whose empirical distribution approximates the target posterior. This population-based view is central to particle-based variational inference, which interprets interacting particle systems as finite-particle transport approximations on probability measures \cite{pmlr-v97-liu19i}. Within this class, SVGD is a prominent deterministic representative, and recent work has examined acceleration, particle degeneracy, and kernel design in related Stein-particle methods \cite{pmlr-v97-liu19i,pmlr-v80-zhuo18a,wang2019matrixsvgd}. It opens new avenues for improving sampling efficiency and robustness, especially in challenging inference settings.
 
-This paper focuses on a specific numerical weakness of SVGD: a single global
+A useful unifying perspective is to view interacting particle methods as
+discretizations of a particle flow (possibly with a stochastic component) that
+transports an initial ensemble toward the target distribution \cite{Sandu_2025_EnsembleFokkerPlanck}.
+Here, we focus on Stein variational gradient descent (SVGD) \cite{liu2016svgd} as a
+representative interacting particle method. SVGD constructs a velocity field
+for the particles based on the target density and a reproducing kernel Hilbert
+space (RKHS) structure, and updates the particles by discretizing this flow.
+%The explicit form of the SVGD update and its velocity field are given in
+%\cref{eq:svgd-update,eq:svgd-velocity} in Section~\ref{sec:method}. 
+The velocity field naturally separates into an attractive drift, which moves
+particles toward high-density regions, and a repulsive interaction, which
+maintains particle diversity and support coverage of multiple modes.
+
+This drift-repulsion structure creates the main numerical challenge studied in
+this paper. When particles crowd, repulsion can become stiff and destabilize
+updates. On ther hand, the drift can require finer resolution on anisotropic targets to
+follow the geometry of $\log p$ closely. A single step size must therefore
+balance competing requirements and can either over-damp repulsion, leading to
+loss of diversity and mode coverage, or under-resolve drift, leading to slow
+progress.
+
+Moreover, repulsion typically requires $O(N^2)$ kernel evaluation per
+step, so increasing the stability by reducing  the step-size can become
+computationally expensive. Finally, repulsive forces can weaken in high
+dimensions or under limited particle resolution, leading to particle collapse
+and poor support of multiple modes \cite{pmlr-v80-zhuo18a,pmlr-v108-zhang20d}.
+In practice, the resulting single-step-size compromise is both statistically
+and computationally inefficient: it can degrade support coverage and predictive
+quality while still spending substantial kernel work to stabilize the wrong
+part of the update.
+
+This paper focuses specifically on this numerical weakness of SVGD: a single global
 step size must simultaneously resolve attractive drift and
 diversity-preserving repulsion, even though these components can evolve on
 different effective time scales.
-
-A useful unifying perspective is to view many such methods as discretizations
-
-of a particle flow (possibly with a stochastic component) that transports an initial set of particles toward the target distribution. In this work, we focus on Stein variational gradient descent (SVGD) \cite{liu2016svgd} as a representative interacting particle method. SVGD constructs a velocity field for the particles based on the target density and a reproducing kernel Hilbert space (RKHS) structure, and updates the particles by discretizing this flow. The explicit form of the SVGD update and its velocity field are given in \cref{eq:svgd-update,eq:svgd-velocity} in Section~\ref{sec:method}. The velocity field naturally separates into an attractive drift (moving particles toward high-density regions) and a repulsive interaction (spreading particles to maintain diversity and support coverage of multiple modes).
-
-Despite its conceptual simplicity, SVGD presents a numerical challenge that is
-central to this paper. The drift and repulsion components can impose different
-stability constraints on the discretization: when particles crowd, repulsion can
-become stiff and destabilize updates, while on anisotropic targets the drift can
-require finer resolution to faithfully follow the geometry of $\log p$. A single
-step size must therefore balance competing requirements and can either
-over-damp repulsion (leading to loss of diversity and mode coverage) or
-under-resolve drift (leading to slow progress). Moreover, repulsion typically
-requires $O(N^2)$ kernel evaluation per step, so increasing stability by
-oversampling repulsion can become computationally expensive. These numerical
-tensions interact with a known statistical pathology of SVGD-type methods:
-repulsive forces can weaken in high dimensions or under limited particle
-resolution, leading to particle collapse and poor support of multiple modes
-\cite{pmlr-v80-zhuo18a,pmlr-v108-zhang20d}.
-In practice, the resulting single-step-size compromise is both statistically and
-computationally inefficient: it can degrade support coverage and predictive
-quality while still spending substantial kernel work to stabilize the wrong part
-of the update.
-
 
 A common approach to solving systems with significantly different 
 components is to use partitioned methods such as implicit-explicit (IMEX)  \cite{Pareschi_2000,sarshar2020parimex} and
@@ -44,11 +51,8 @@ apply more frequent, smaller steps to the stiff or rapidly varying part, while u
 slow part less often. This approach improves both stability and efficiency in multi-scale
 dynamical systems, and has been successfully applied in a variety of scientific computing contexts.
 
-The structure of the SVGD update naturally separates
-into two forces: an attractive drift and a repulsive interaction.
-These forces often operate on different time scales and can impose distinct
-numerical challenges. Motivated by advances in multirate time-integration
-for multi-scale dynamical systems—including MrGARK, IMEX, and related splitting schemes \cite{sarshar2019mrgark,sarshar2021implicitgark,sarshar2021glmadi,sarshar2020parimex,sarshar2022surrogate}—we propose to integrate the drift and repulsion terms on separate time scales. This leads to a family of multirate SVGD variants, including symmetric splitting, fixed repulsion substepping, and adaptive error-controlled drift substepping.
+Motivated by advances in multirate time-integration
+for multi-scale dynamical systems—including MrGARK, IMEX, and related splitting schemes \cite{sarshar2019mrgark,sarshar2021implicitgark,sarshar2021glmadi,sarshar2020parimex,sarshar2022surrogate} we propose to integrate the drift and repulsion terms on separate time scales. This leads to a number of multirate SVGD variants, including symmetric splitting, fixed repulsion substepping, and adaptive error-controlled drift substepping.
 
 To assess the effectiveness of these methods, we conduct a comprehensive empirical evaluation. We compare our multirate SVGD variants with established approaches from the literature across a range of benchmark problems, using a variety of task-appropriate metrics. Results highlight the strengths and limitations of each method under diverse geometric and statistical challenges.
 

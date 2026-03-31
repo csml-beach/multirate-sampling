@@ -4,7 +4,7 @@ however, each update combines two qualitatively different effects: attraction
 toward high-posterior regions and repulsion that preserves particle diversity.
 These effects can evolve at different rates, especially in high-dimensional,
 anisotropic, or hierarchical posteriors, so one step size can be unstable in
-some regions and inefficient in others. In response, we derive a multirate
+some regions and inefficient in others. We derive a multirate
 version of SVGD that updates these components on different time scales. The
 framework yields practical algorithms, including a symmetric split method, a
 fixed multirate method (MR-SVGD), and an adaptive multirate method
@@ -12,11 +12,12 @@ fixed multirate method (MR-SVGD), and an adaptive multirate method
 and rigorous benchmark suite covering six problem families: a 50D Gaussian
 target, multiple 2D synthetic targets, UCI Bayesian logistic regression,
 multimodal Gaussian mixtures, Bayesian neural networks, and large-scale
-hierarchical logistic regression. Evaluation combines distributional fidelity,
-predictive performance, calibration, mixing, and explicit computational cost
-accounting. Across these six benchmark families, multirate SVGD variants
+hierarchical logistic regression. Evaluation includes posterior-matching metrics,
+predictive performance, calibration quality, mixing, and explicit computational 
+cost accounting.
+Across these six benchmark families, multirate SVGD variants
 improve robustness and quality-cost tradeoffs relative to vanilla SVGD. The
 strongest gains appear on stiff hierarchical, strongly anisotropic, and
 multimodal targets, where adaptive multirate SVGD is usually the strongest
-variant and fixed multirate SVGD provides a simpler robustness baseline at
+variant and fixed multirate SVGD provides a simpler robust alternative a
 lower cost.
