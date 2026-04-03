@@ -1,4 +1,4 @@
-\documentclass[preprint,12pt]{elsarticle}
+\documentclass[preprint,12pt,review]{elsarticle}
 
 \usepackage{amsmath}
 \usepackage{amssymb}
@@ -11,6 +11,7 @@
 \usepackage{algpseudocode}
 \usepackage{url}
 \usepackage{cleveref}
+\usepackage{lineno}
 \theoremstyle{remark}
 \newtheorem{remark}{Remark}
 \journal{Journal of Computational Science}
@@ -26,33 +27,45 @@
 }
 \makeatother
 
+\newif\ifblindsubmission
+\blindsubmissiontrue % set to \blindsubmissionfalse for non-blind version
+
 \begin{document}
 
 \begin{frontmatter}
 
 \title{Multirate Stein Variational Gradient Descent for Efficient Bayesian Sampling}
 
+\ifblindsubmission
+\author{Anonymous Author(s)}
+\address{Anonymous Institution}
+\else
 \author[inst1]{Arash Sarshar\corref{cor1}}
 \ead{arash.sarshar@csulb.edu}
 \cortext[cor1]{Corresponding author}
 \address[inst1]{Department of Computer Engineering and Computer Science, California State University, Long Beach, 90840, CA, USA}
+\fi
 
 \begin{abstract}
 \input{abstract}
 \end{abstract}
 
 \begin{keyword}
-Stein variational gradient descent \sep Bayesian computation \sep multirate integration \sep particle-based variational inference \sep multiscale computation \sep adaptive time stepping
+Stein variational gradient descent \sep Bayesian computation \sep multirate integration \sep particle-based variational inference  \sep adaptive time stepping
 \end{keyword}
 
 \end{frontmatter}
+\linenumbers
 
 \input{introduction}
 \input{method}
 \input{experiments}
 \input{conclusions}
 \input{data_availability}
+\ifblindsubmission
+\else
 \input{acknowledgments}
+\fi
 
 \bibliographystyle{elsarticle-num}
 \bibliography{Bib/references,Bib/sarshar,Bib/sandu,Bib/ode_multirate,Bib/ode_imex,Bib/ode_general}

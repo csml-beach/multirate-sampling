@@ -2,7 +2,7 @@
 
 \label{sec:introduction}
 
-Modern Bayesian inference often requires efficient sampling from complex, high-dimensional, and multimodal posterior distributions. As these problems grow in scale and complexity, traditional sampling methods face significant computational and statistical challenges. The advent of automatic differentiation has enabled the widespread use of gradient-based samplers, making methods such as stochastic gradient Langevin dynamics (SGLD) and stochastic gradient Hamiltonian Monte Carlo (SGHMC) practical and popular choices for large-scale applications \cite{welling2011sgld,chen2014sghmc}. While these approaches advance a single Markov chain using noisy gradients, an alternative paradigm is offered by interacting particle methods, which evolve a population of particles whose empirical distribution approximates the target posterior. This population-based view is central to particle-based variational inference, which interprets interacting particle systems as finite-particle transport approximations on probability measures \cite{pmlr-v97-liu19i}. Within this class, SVGD is a prominent deterministic representative, and recent work has examined acceleration, particle degeneracy, and kernel design in related Stein-particle methods \cite{pmlr-v97-liu19i,pmlr-v80-zhuo18a,wang2019matrixsvgd}. It opens new avenues for improving sampling efficiency and robustness, especially in challenging inference settings.
+Modern Bayesian inference often requires efficient sampling from complex, high-dimensional, and multimodal posterior distributions. As these problems grow in scale and complexity, traditional sampling methods face significant computational and statistical challenges. The advent of automatic differentiation has enabled the widespread use of gradient-based samplers, making methods such as stochastic gradient Langevin dynamics (SGLD) and stochastic gradient Hamiltonian Monte Carlo (SGHMC) practical and popular choices for large-scale applications \cite{welling2011sgld,chen2014sghmc}. While these approaches advance a single Markov chain using noisy gradients, an alternative paradigm is offered by interacting particle methods, which evolve a population of particles whose empirical distribution approximates the target posterior. This population-based view is central to particle-based variational inference \cite{pmlr-v97-liu19i}. Within this class, SVGD is a prominent deterministic representative, and recent work has examined acceleration, particle degeneracy, and kernel design in related Stein-particle methods \cite{pmlr-v97-liu19i,pmlr-v80-zhuo18a,wang2019matrixsvgd}. It opens new avenues for improving sampling efficiency and robustness, especially in challenging inference settings.
 
 A useful unifying perspective is to view interacting particle methods as
 discretizations of a particle flow (possibly with a stochastic component) that
@@ -10,7 +10,7 @@ transports an initial ensemble toward the target distribution \cite{Sandu_2025_E
 Here, we focus on Stein variational gradient descent (SVGD) \cite{liu2016svgd} as a
 representative interacting particle method. SVGD constructs a velocity field
 for the particles based on the target density and a reproducing kernel Hilbert
-space (RKHS) structure, and updates the particles by discretizing this flow.
+space (RKHS) structure, and updates the particles by discretizing this flow \cite{liu2016svgd}.
 %The explicit form of the SVGD update and its velocity field are given in
 %\cref{eq:svgd-update,eq:svgd-velocity} in Section~\ref{sec:method}. 
 The velocity field naturally separates into an attractive drift, which moves
@@ -25,7 +25,7 @@ balance competing requirements and can either over-damp repulsion, leading to
 loss of diversity and mode coverage, or under-resolve drift, leading to slow
 progress.
 
-Moreover, repulsion typically requires $O(N^2)$ kernel evaluation per
+Moreover, repulsion typically requires kernel evaluation at each
 step, so increasing the stability by reducing  the step-size can become
 computationally expensive. Finally, repulsive forces can weaken in high
 dimensions or under limited particle resolution, leading to particle collapse
@@ -35,10 +35,10 @@ and computationally inefficient: it can degrade support coverage and predictive
 quality while still spending substantial kernel work to stabilize the wrong
 part of the update.
 
-This paper focuses specifically on this numerical weakness of SVGD: a single global
-step size must simultaneously resolve attractive drift and
-diversity-preserving repulsion, even though these components can evolve on
-different effective time scales.
+%This paper focuses specifically on this numerical weakness of SVGD: a single global
+%step size must simultaneously resolve attractive drift and
+%diversity-preserving repulsion, even though these components can evolve on
+%different effective time scales.
 
 A common approach to solving systems with significantly different 
 components is to use partitioned methods such as implicit-explicit (IMEX)  \cite{Pareschi_2000,sarshar2020parimex} and
@@ -49,31 +49,29 @@ to its scale \cite{sarshar2019mrgark,sarshar2021implicitgark,sarshar2021glmadi}.
 For example, in a split ODE of the form $\dot{x} = \phi_{\text{fast}}(x) + \phi_{\text{slow}}(x)$, multirate schemes
 apply more frequent, smaller steps to the stiff or rapidly varying part, while updating the
 slow part less often. This approach improves both stability and efficiency in multi-scale
-dynamical systems, and has been successfully applied in a variety of scientific computing contexts.
+dynamical systems, and has been successfully applied in a variety of scientific computing contexts \cite{sarshar2020parimex,sarshar2022surrogate}. 
 
 Motivated by advances in multirate time-integration
-for multi-scale dynamical systems—including MrGARK, IMEX, and related splitting schemes \cite{sarshar2019mrgark,sarshar2021implicitgark,sarshar2021glmadi,sarshar2020parimex,sarshar2022surrogate} we propose to integrate the drift and repulsion terms on separate time scales. This leads to a number of multirate SVGD variants, including symmetric splitting, fixed repulsion substepping, and adaptive error-controlled drift substepping.
+for multi-scale dynamical systems—including MrGARK, IMEX, and related splitting schemes \cite{sarshar2019mrgark,sarshar2021implicitgark,sarshar2021glmadi} we propose to integrate the drift and repulsion terms on separate time scales. This leads to a number of multirate SVGD variants, including symmetric splitting, fixed repulsion substepping, and adaptive error-controlled drift substepping.
 
 To assess the effectiveness of these methods, we conduct a comprehensive empirical evaluation. We compare our multirate SVGD variants with established approaches from the literature across a range of benchmark problems, using a variety of task-appropriate metrics. Results highlight the strengths and limitations of each method under diverse geometric and statistical challenges.
 
-\subsection{Contributions}
+\subsection*{Contributions}
 
-Our main contributions are:
+The main contributions of this work are:
 \begin{itemize}
   \item Multirate SVGD formulations that explicitly separate drift and repulsion
   and support symmetric splitting and fixed multirate schedules.
-  \item An adaptive error-controlled multirate SVGD variant that selects drift
+  \item An adaptive error-controlled multirate SVGD variant that selects 
   substeps based on a local error estimator while keeping repulsion stable.
   \item A broad empirical study showing that multirate SVGD improves robustness
-  and quality-cost tradeoffs over vanilla SVGD, with the strongest gains on
+  and quality-cost tradeoffs compared to SVGD and representative chain methods, with the strongest gains on
   anisotropic, multimodal, and hierarchical targets.
-  \item A benchmark suite spanning 50D, 2D, UCI, mixture, BNN, and HLR targets,
-  with task-appropriate diagnostics, early stopping, and gradient/kernel
-  evaluation accounting for efficiency comparisons.
+  \item A benchmark suite spanning many different targets,
+  equipped with appropriate diagnostics, early stopping, performance evaluation metrics for efficiency comparisons.
 \end{itemize}
 
-\paragraph{Organization.}
-Section~\ref{sec:method} presents the SVGD variants and the multirate
+We present our work in the following: Section~\ref{sec:method} presents the SVGD variants and the multirate
 construction. Section~\ref{sec:experiments} describes the benchmarks and
 experimental protocol and reports results. Section~\ref{sec:conclusions}
 summarizes findings and discusses directions for future work.

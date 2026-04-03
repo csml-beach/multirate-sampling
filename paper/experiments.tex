@@ -9,9 +9,8 @@ focuses on both statistical quality and computational cost.
 
 \subsection{Evaluation Metrics}
 
-Let $X=\{x_i\}_{i=1}^N$ denote the checkpoint sample set (particles for
-particle methods; a rolling window for single-chain methods). We use
-complementary diagnostics that separately assess distributional fidelity,
+We track particle evolution, and in case of chain methods, we use a rolling window, to calculate performance metrics during the sampling process. We use
+the following  diagnostics that separately assess distributional fidelity,
 predictive quality, and computational cost.
 
 \paragraph{Moment fidelity}

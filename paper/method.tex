@@ -4,10 +4,8 @@
 \subsection{Background: SVGD as a particle flow}
 
 Let $p(x)$ denote a target density on $\mathbb{R}^d$ and let
-$\{x_i^t\}_{i=1}^N$ be a set of particles at iteration $t$. Stein variational
-gradient descent (SVGD) evolves particles by following a deterministic
-interacting-particle flow whose velocity field is constrained to a reproducing
-kernel Hilbert space (RKHS) \cite{liu2016svgd}. A first-order discretization of
+$\{x_i^t\}_{i=1}^N$ be a set of particles at iteration $t$.  SVGD evolves particles by following a deterministic
+interacting-particle flow whose velocity field is constrained to RKHS \cite{liu2016svgd}. A first-order discretization of
 this flow is the update
 \begin{equation}
   x_i^{t+1} = x_i^t + h\,\phi(x_i^t),
@@ -21,22 +19,8 @@ where $h>0$ is a step size and the SVGD velocity field is
 \end{equation}
 The first term in \cref{eq:svgd-velocity} is an \emph{attractive} drift that
 pushes particles toward high-density regions via the score $\nabla \log p$. The second term is a \emph{repulsive} interaction that discourages particle collapse.
-
-For derivation and notation, we write the method with a single RBF kernel
-\begin{equation}
-  k(x, y) = \exp\Big(-\frac{\|x-y\|_2^2}{2\,h_k}\Big),
-  \label{eq:svgd-rbf-kernel}
-\end{equation}
-where the bandwidth $h_k$ is chosen by the median heuristic (the median
-pairwise squared distance among particles) and scaled by a factor $\alpha>0$
-to modulate repulsion strength. Most experiments use this single-kernel form.
-For the Mix8 multimodal benchmark we additionally consider a shared multiscale
-RBF variant to test whether broader particle interactions improve mode
-exploration; the drift--repulsion splitting and multirate updates are otherwise
-unchanged.
-More generally, once the attractive and repulsive fields are defined, the
-multirate constructions below are agnostic to the particular admissible kernel
-family used to build those fields.
+The multirate constructions below are kernel-agnostic: they apply once a
+kernel-induced attractive field and repulsive field have been specified.
 
 \subsection{Drift--repulsion splitting and multirate integration}
 
@@ -63,7 +47,7 @@ macro-step size $h$.
 
 \paragraph{Strang-split SVGD}
 
-Define the forward Euler maps that advance the split system by a step size
+Define the forward Euler update that advance the split system by a step size
 $\tau$:
 \begin{equation*}
   \Psi_{\text{rep}}^{\tau}(x) = x + \tau f_{\text{rep}}(x),
@@ -94,8 +78,7 @@ gradient computations and, in particular, $O(N^2)$ kernel interactions.
 Moreover, practical accuracy is also limited by finite-particle effects and by
 choices such as bandwidth selection and early stopping, which can mute the
 benefits of increasing time-integration order at a fixed computational budget.
-We therefore specialize to a first-order multirate construction (Euler update
-maps) that preserves a macro step of size $h$ for the drift while resolving the
+We therefore utilize a first-order multirate construction using Euler updates that preserves a macro step of size $h$ for the drift while resolving the
 repulsion with $m$ substeps:
 \begin{equation}
   x^{t+1}
@@ -132,7 +115,7 @@ drift microsteps $m$ adaptively at each macro step, while retaining one
 repulsion update per macro step. This follows the standard local-error-control
 perspective used in ODE
 integrators, where local error estimates are used to adjust resolution
-\cite{Hairer_book_I}. After the repulsion update, denote the state by
+\cite[Ch. II]{Hairer_book_I}. After the repulsion update, denote the state by
 $x=\Psi_{\text{rep}}^{h}(x^{t})$. We estimate the local
 drift-discretization error by comparing one drift step of size
 $h$ with two consecutive drift half-steps of size $h/2$,
@@ -144,29 +127,29 @@ $h$ with two consecutive drift half-steps of size $h/2$,
 We then form the relative discrepancy
 \begin{equation}
   \rho
-  = \frac{\|\tilde{x}_{\text{full}} - x_{\text{full}}\|_2}{\|x\|_2 + \epsilon}.
+  = \frac{\|\tilde{x}_{\text{full}} - x_{\text{full}}\|_2}{\|x\|_2 + \epsilon},
   \label{eq:adapt-mr-error}
 \end{equation}
-which serves as a dimensionless local error indicator for the drift update.
-For a first-order drift integrator, the step-doubling discrepancy behaves
-locally as
+which serves as a dimensionless local error indicator for the drift update. $\epsilon>0$ is a small constant to avoid division by zero.
+For a first-order drift integrator, this local error behaves
+as \cite[Ch. II.4]{Hairer_book_I}:
 \[
-\rho(h) = C h^2 + \mathcal{O}(h^3).
+\rho(h) = C h^2 + \mathcal{O}(h^3),
 \]
-If the drift step is replaced by $m$ microsteps of size $h/m$, then
+where $C$ is the principal error constant dependent on $f$ and its derivatives. If the drift step is replaced by $m$ microsteps of size $h/m$, then
 \[
 \rho_m \approx C(h/m)^2 \approx \rho/m^2.
 \]
-Imposing the target local accuracy $\rho_m \approx \varepsilon$ gives
-$m \approx \sqrt{\rho/\varepsilon}$. We therefore use the clipped integer
+Imposing the target local error tolerance $\rho_m \approx \text{Tol}$ gives
+$m \approx \sqrt{\rho/\text{Tol}}$. We therefore use the clipped integer
 controller
 \begin{equation}
-  m \leftarrow \mathrm{clip}\Big(\Big\lceil \sqrt{\rho/\varepsilon}\Big\rceil,
+  m \leftarrow \mathrm{clip}\Big(\Big\lceil \sqrt{\rho/\text{Tol}}\Big\rceil,
   m_{\min}, m_{\max}\Big),
   \label{eq:adapt-mr-m}
 \end{equation}
-which increases $m$ when $\rho>\varepsilon$ and decreases it when
-$\rho\le\varepsilon$, while enforcing the robustness bounds
+which increases $m$ when $\rho>\text{Tol}$ and decreases it when
+$\rho\le\text{Tol}$, while enforcing the robustness bounds
 $m_{\min}\le m\le m_{\max}$.
 The macro-step update is then
 \begin{equation}
@@ -175,22 +158,20 @@ The macro-step update is then
   \qquad m = m(x^t,h).
   \label{eq:adapt-mr-step}
 \end{equation}
-Here $\varepsilon>0$ is a user-set
-tolerance and $\epsilon>0$ is a small constant to avoid division by zero. This
+This
 strategy increases drift resolution only when the local error indicator suggests
-stiffness or rapid variation in the drift component. See \cref{alg:adapt_mr_svgd} for complete implementation.
+stiffness or rapid variation in the drift component.  \Cref{alg:adapt_mr_svgd} provides the complete algorithm for this method.
 
 
 \begin{remark}
-In implementation, if $m\le 2$ we reuse the already computed step-doubling
-trajectory to avoid extra drift evaluations.
+In practice, if $m\le 2$ we can reuse the already computed, locally-higher-order solution $\tilde{x}_{\text{full}} $ to avoid extra drift evaluations.
 \end{remark}
 
 \begin{algorithm}[t]
 \caption{Adaptive multirate SVGD (Adapt-MR-SVGD)}
 \label{alg:adapt_mr_svgd}
 \begin{algorithmic}[1]
-\Require Particles $\{x_i\}_{i=1}^N$, step size $h$, bounds $m_{\min}, m_{\max}$, tolerance $\varepsilon$
+\Require Particles $\{x_i\}_{i=1}^N$, step size $h$, bounds $m_{\min}, m_{\max}$, tolerance $\text{Tol}$
 \State $x \leftarrow \{x_i\}$
 \State compute repulsion $f_{\text{rep}}(x)$ using \cref{eq:svgd-rep-term}
 \State $x \leftarrow x + h\,f_{\text{rep}}(x)$
@@ -200,9 +181,9 @@ trajectory to avoid extra drift evaluations.
 \State compute drift $f_{\text{drift}}(x_{\text{half}})$
 \State $\tilde{x}_{\text{full}} \leftarrow x_{\text{half}} + (h/2)\,f_{\text{drift}}(x_{\text{half}})$
 \State estimate relative error $\rho = \|\tilde{x}_{\text{full}} - x_{\text{full}}\| / (\|x\| + \epsilon)$
-\State $m \leftarrow \mathrm{clip}(\lceil \sqrt{\rho/\varepsilon} \rceil, m_{\min}, m_{\max})$
+\State $m \leftarrow \mathrm{clip}(\lceil \sqrt{\rho/\text{Tol}} \rceil, m_{\min}, m_{\max})$
 \If{$m \le 2$}
-  \State $x \leftarrow \tilde{x}_{\text{full}}$ \Comment{reuse step-doubling path}
+  \State $x \leftarrow \tilde{x}_{\text{full}}$ \Comment{reuse current predictor if accurate}
 \Else
   \For{$s=1$ to $m$}
     \State compute drift $f_{\text{drift}}(x)$
@@ -212,9 +193,3 @@ trajectory to avoid extra drift evaluations.
 \State \Return $x$
 \end{algorithmic}
 \end{algorithm}
-
-\paragraph{Numerical guards}
-To improve robustness, we clip gradients and clamp extreme state values before
-and after the split updates, and we replace non-finite updates with the last
-finite state. These safeguards are implementation-level stability controls and
-do not alter the intended fixed point of the discretization.
