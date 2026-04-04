@@ -1,17 +1,20 @@
-\section{Experiments and Results}
-\label{sec:experiments}
+\section{Experimental Setup}
+\label{sec:exp_setup}
 
 We evaluate multirate SVGD variants on six benchmark groups: a 50D Gaussian
 target, a suite of 2D synthetic targets, UCI logistic regression, a 2D Gaussian
 mixture (mix8), a one-hidden-layer Bayesian neural network (BNN), and a
 large-scale hierarchical logistic-regression (HLR) benchmark. The comparison
-focuses on both statistical quality and computational cost.
+focuses on both statistical quality and computational cost. This section defines
+the shared diagnostics and protocol; benchmark-specific details are introduced
+where needed below.
 
 \subsection{Evaluation Metrics}
 
-We track particle evolution, and in case of chain methods, we use a rolling window, to calculate performance metrics during the sampling process. We use
-the following  diagnostics that separately assess distributional fidelity,
-predictive quality, and computational cost.
+Evaluation combines distributional fidelity, predictive performance, mixing, and
+explicit computational cost accounting. Metrics used across multiple
+benchmarks are defined here once; benchmark-specific diagnostics are introduced
+locally.
 
 \paragraph{Moment fidelity}
 When reference moments are available, we report
@@ -41,9 +44,11 @@ and the empirical discrepancy is
 \left(\frac{1}{N^2}\sum_{i=1}^{N}\sum_{j=1}^{N}\kappa_p(x_i,x_j)\right)^{1/2}.
 \label{eq:ksd-metric}
 \end{equation}
-Under standard kernel conditions, KSD is zero only at the target law and
-increases under global mismatch, including location bias, covariance distortion,
-and mode omission \cite{liu2016ksd,pmlr-v70-gorham17a}.
+KSD measures how far the empirical particle distribution is from satisfying the
+target's Stein identity. Intuitively, it acts as a global goodness-of-fit
+metric: it is small when the particles collectively match the target law, and
+large when they exhibit systematic errors such as bias, incorrect spread, or
+missed modes.
 
 \paragraph{Mean log-density fit}
 We complement KSD with the empirical mean log-density
@@ -51,79 +56,63 @@ We complement KSD with the empirical mean log-density
 \overline{\log p}(X)=\frac{1}{N}\sum_{i=1}^{N}\log p(x_i),
 \label{eq:mean-logp-metric}
 \end{equation}
-which corresponds to the logarithmic scoring rule
-\cite{gneiting2007strictly}. This metric quantifies average concentration in
-high-density regions, but it is local in $\log p(x)$ and therefore does not, by
-itself, certify global distributional agreement. Reporting
-\cref{eq:ksd-metric,eq:mean-logp-metric} separates global fit from local
-density concentration.
+which measures how strongly the particles concentrate in high-density regions
+of the target. Unlike KSD, this is a pointwise criterion: it rewards samples
+for lying in locally plausible regions, but by itself it does not certify
+global distributional agreement. Reporting
+\cref{eq:ksd-metric,eq:mean-logp-metric} therefore separates global
+distributional fidelity from local density concentration.
 
 \paragraph{Predictive performance and calibration}
-For UCI and BNN tasks, we report accuracy, negative log-likelihood
-$\mathrm{NLL}=-\frac{1}{M}\sum_{m=1}^M\big[y_m\log \hat p_m+(1-y_m)\log(1-\hat p_m)\big]$,
-and expected calibration error
-$\mathrm{ECE}=\sum_{b=1}^{B}\frac{|\mathcal{B}_b|}{M}\,
-|\mathrm{acc}(\mathcal{B}_b)-\mathrm{conf}(\mathcal{B}_b)|$.
-This combination separates discrimination (accuracy), probabilistic sharpness
-(NLL), and calibration quality (ECE).
-
-\paragraph{Mode-structure diagnostics}
-For structured multimodal targets, we report mode coverage, normalized mode
-entropy, and mode imbalance to detect mode collapse and uneven mass allocation;
-minimum mode mass is retained as a secondary check when informative. For the 2D
-synthetic targets, we additionally retain grid $L_1$ discrepancy and moment
-diagnostics as secondary spatial mismatch measures.
-
-\paragraph{Cost accounting}
-In addition to wall-clock time, we track gradient- and kernel-evaluation counts
-to support hardware-agnostic efficiency comparisons across methods with
-different per-step workloads.
+For the binary-classification experiments (UCI and BNN tasks), we report
+accuracy, negative log-likelihood, and
+expected calibration error \footnote{Accuracy as the fraction of correctly classified examples
+under a $0.5$ threshold on the posterior predictive probability.  $\mathrm{acc}(\mathcal{B}_b)$  is the empirical accuracy in bin $\mathcal{B}_b$ under the same threshold, and $\mathrm{conf}(\mathcal{B}_b)$ is
+the mean predictive probability in that bin.},
+\begin{align}
+\mathrm{NLL}
+&= -\frac{1}{M}\sum_{m=1}^M
+\big[y_m\log \hat p_m+(1-y_m)\log(1-\hat p_m)\big], \\
+\mathrm{ECE}
+&= \sum_{b=1}^{B}\frac{|\mathcal{B}_b|}{M}\,
+\big|\mathrm{acc}(\mathcal{B}_b)-\mathrm{conf}(\mathcal{B}_b)\big|.
+\end{align}
+In all predictive experiments, ECE is computed with $B=10$ equal-width bins on
+$[0,1]$. Together, these metrics capture thresholded classification
+performance, probabilistic predictive fit, and calibration quality.
 
 \paragraph{Mixing efficiency}
-To quantify dependence, we report ESS from a one-dimensional diagnostic
-sequence $z_1,\ldots,z_T$ built from the first coordinate in our implementation.
-For particle methods at a checkpoint, $z_i$ is the first coordinate of particle
-$i$ ($i=1,\ldots,N$). For single-chain baselines, $z_i$ is the first coordinate
-of the $i$-th state in a rolling window of recent iterates (window length as
-set in each benchmark script).
-Define
-\begin{equation}
-\bar z=\frac{1}{T}\sum_{i=1}^{T} z_i,\qquad
-\hat\gamma_k=\frac{1}{T-k}\sum_{i=1}^{T-k}(z_i-\bar z)(z_{i+k}-\bar z),\qquad
-\hat\rho_k=\frac{\hat\gamma_k}{\hat\gamma_0}.
-\label{eq:ess-autocorr}
-\end{equation}
-Autocorrelations are evaluated up to
-$k_{\max}=\min(\lfloor T/2\rfloor,100)$. Let $K$ be the first lag in
-$\{1,\ldots,k_{\max}\}$ such that $\hat\rho_K<0$; if no such lag exists, we set
-$K=k_{\max}$. The reported ESS is
-\begin{equation}
-\mathrm{ESS}(z)=\frac{T}{1+2\sum_{k=1}^{K}\hat\rho_k}.
-\label{eq:ess-metric}
-\end{equation}
-This initial-positive truncation controls high-lag noise in the empirical
-autocorrelation and provides a stable scalar proxy for mixing. Because
-\cref{eq:ess-metric} is computed from a single diagnostic coordinate, we
-interpret ESS as a univariate mixing indicator rather than a full multivariate
-efficiency estimate. Accordingly, distribution-level conclusions rely primarily
-on KSD and moment/mode diagnostics, with ESS used as a complementary statistic.
+To quantify dependence, we report ESS as a supplemental univariate mixing
+diagnostic, computed from the first coordinate using a standard
+autocorrelation-based estimator with initial-positive truncation
+\cite{geyer1992practical}. For particle methods at a checkpoint, the diagnostic
+sequence is formed from the first coordinate across particles; for single-chain
+baselines, it is formed from a rolling window of recent iterates. Because this
+quantity is one-dimensional, we do not interpret ESS as a full multivariate
+efficiency measure but as a complementary statistic.
 
-Lower is better for $e_\mu$, $e_\Sigma$, KSD, NLL, ECE, and grid $L_1$, whereas
-higher is better for ESS, accuracy, coverage, entropy, minimum mode mass, and
-mean log-probability.
+\paragraph{Cost accounting}
+Alongside wall-clock time, we track gradient and kernel evaluation counts to
+support hardware-agnostic efficiency comparisons across methods with different workloads.
+
+\begin{remark}
+For the common metrics above, lower is better for $e_\mu$, $e_\Sigma$, KSD,
+NLL, ECE, wall-clock time, and gradient- and kernel-evaluation counts,
+whereas higher is better for ESS, accuracy, and mean log-probability.
+\end{remark}
 
 
 
-\subsection{Experimental protocol}
+\subsection{Experimental Protocol}
 
 Across benchmarks, we compare the same method family whenever applicable:
 vanilla SVGD, Strang-split SVGD, fixed multirate SVGD (MR-SVGD), adaptive
 multirate SVGD (Adapt-MR-SVGD), and the single-chain baselines SGLD and an
-SGHMC-style method.
-The SVGD-family updates are those defined in \cref{sec:method}, namely
+SGHMC-style method. The SVGD-family updates are those defined in
+\cref{sec:method}, namely
 \cref{eq:svgd-update,eq:strang-split-svgd,eq:mr-svgd,eq:adapt-mr-step}.
-\begin{remark}
-For the single-chain baselines, we use the standard stochastic-gradient update
+
+Single-chain baselines use the standard stochastic-gradient update
 \begin{equation}
 x_{t+1}=x_t+\eta\nabla \log p(x_t)+\sqrt{2\eta}\,\xi_t,\qquad \xi_t\sim\mathcal{N}(0,I),
 \label{eq:sgld-update}
@@ -133,561 +122,32 @@ for SGLD \cite{welling2011sgld}, and
 v_{t+1}=\beta v_t+\eta\nabla \log p(x_t)+\sqrt{2\alpha\eta}\,\xi_t,\qquad x_{t+1}=x_t+v_{t+1},
 \label{eq:sghmc-update}
 \end{equation}
-for an SGHMC-style baseline \cite{chen2014sghmc}. Here $\eta$ is the step size, $\alpha$ is a
-friction/noise parameter, and $\beta\in(0,1)$ is momentum decay.
-\end{remark}
+for an SGHMC-style baseline \cite{chen2014sghmc}. Here $\eta$ is the step
+size, $\alpha$ is a friction or noise parameter, and $\beta\in(0,1)$ is the
+momentum decay.
+
+\paragraph{Particle configuration and kernel choice}
 For particle methods, we use $N=128$ particles; for single-chain methods, we
 compute metrics from a rolling window of recent iterates to obtain comparable
-finite-sample summaries. Alongside wall-clock time, we report gradient- and
-kernel-evaluation counts as hardware-agnostic measures of computational cost.
+finite-sample summaries. Unless stated otherwise, particle methods use a
+Gaussian RBF kernel with bandwidth selected by the median heuristic and a
+benchmark-specific scaling factor. For Mix8, we instead use a shared
+multiscale RBF kernel with bandwidth factors $\{0.5,1,2\}$ to better probe
+local spacing and longer-range interactions across modes.
 
-All benchmarks use checkpointed evaluation at a benchmark-specific interval and
+\paragraph{Implementation safeguards}
+To improve numerical robustness, the multirate implementations clip raw score
+components to the interval $[-50,50]$ before assembling the update. Benchmarks
+with pronounced instability additionally use a short non-finite fail-fast
+guard, which we note locally when it is active.
+
+\paragraph{Checkpointing and model selection}
+All benchmarks use checkpointed evaluation at benchmark-specific intervals and
 a patience-based early-stopping rule triggered by persistent degradation of a
-designated monitor metric. Pure sampling benchmarks use KSD as the monitor (50D
-Gaussian, 2D synthetic targets, and Mixture2D), whereas predictive benchmarks
-use held-out NLL (UCI logistic regression, BNN, and HLR). For each run, we
-retain the best finite checkpoint under that monitor before stopping. Accuracy
-and ECE are reported for predictive tasks but are never used as stopping
-triggers. Benchmarks with pronounced numerical instability add a short
-non-finite fail-fast guard; we note those cases locally.
+designated monitor metric. Pure sampling benchmarks use KSD as the monitor
+(50D Gaussian, 2D synthetic targets, and Mixture2D), whereas predictive
+benchmarks use held-out NLL (UCI logistic regression, BNN, and HLR). For each
+run, we retain the best finite checkpoint under that monitor before stopping.
+Accuracy and ECE are reported for predictive tasks but are never used as
+stopping criteria.
 
-Across the full benchmark suite, the recurring pattern is that multirate SVGD
-variants improve robustness relative to vanilla SVGD, with the largest gains on
-anisotropic, hierarchical, and multimodal targets. Fixed multirate SVGD serves
-as a cheaper robustness baseline, while adaptive multirate SVGD usually
-delivers the strongest quality-cost tradeoff when local stiffness varies along
-the trajectory.
-
-\subsection{50D Gaussian}
-
-This benchmark stresses stability in a high-dimensional setting with anisotropic
-covariance structure. We run 1,000 iterations with checkpointing every 50 steps
-and a 5-seed ablation. Reported metrics are moment errors
-($\|\hat{\mu}-\mu\|_2$ and $\|\hat{\Sigma}-\Sigma\|_F$), ESS, KSD, and mean log
-probability.
-
-\begin{figure}[t]
-  \centering
-  \safeincludegraphics[width=0.9\linewidth]{../figures/50d/pareto_mu_cov_final_mean_err.png}
-  \caption{50D Gaussian: final mean $\pm$ std Pareto plot in moment-error space
-  with marker size encoding ESS (left) and wall time (right).}
-  \label{fig:gauss50_pareto}
-\end{figure}
-
-\begin{figure}[t]
-  \centering
-  \safeincludegraphics[width=0.9\linewidth]{../figures/50d/summary_metric_panels.png}
-  \caption{50D Gaussian final-checkpoint summary across methods. The four panels
-  report $\|\hat{\mu}-\mu\|_2$, $\|\hat{\Sigma}-\Sigma\|_F$, KSD, and ESS,
-  respectively; markers show mean values across seeds and error bars indicate
-  one standard deviation. Lower is better for the first three metrics, whereas
-  higher is better for ESS. This figure highlights robustness differences under
-  strong anisotropy: Adapt-MR-SVGD is the only particle variant that keeps both
-  moment errors and KSD under control.}
-  \label{fig:gauss50_summary}
-\end{figure}
-
-Among the particle methods, Adapt-MR-SVGD is the only variant that keeps both
-moment errors and KSD under control in this anisotropic Gaussian setting: it
-substantially improves on MR-SVGD and avoids the severe degradation exhibited by
-vanilla SVGD and Strang-SVGD. The chain baselines remain competitive on some
-final-checkpoint fidelity metrics, but they do so with ESS near $4$, far below
-the particle methods. The main lesson of this benchmark is therefore numerical
-rather than absolute: multirate treatment is critical for maintaining stable,
-informative particle behavior once drift and repulsion interact through strong
-anisotropy. Within the particle family, MR-SVGD offers a cheaper but less
-accurate fixed-schedule baseline, whereas Adapt-MR-SVGD achieves the strongest
-quality at a higher computational cost.
-
-\subsection{2D synthetic targets}
-
-We evaluate banana, ring, squiggly, two-moons, and funnel targets over five
-seeds, with 1,000 iterations and checkpointing every 20 steps. Here KSD serves
-both as the stop monitor and the primary quality metric, and we add a short
-non-finite KSD fail-fast guard because several targets can destabilize weak
-particle updates. We report mean log probability as a secondary
-density-concentration score, gradient/kernel evaluations and wall time as cost
-metrics, and ESS as a supplemental mixing proxy. Moment errors and grid-based
-$L_1$ discrepancy are retained as diagnostics, but they are not used in the
-main 2D summary table. To contextualize the geometry of these targets, we also
-show short-run visualization panels for representative cases.
-
-\begin{figure}[t]
-  \centering
-  \begin{subfigure}[t]{0.95\linewidth}
-    \centering
-    \safeincludegraphics[width=\linewidth]{../figures/2d_demo_tuned/banana_demo.png}
-    \caption{Banana target: initial and short-run final particle states.}
-    \label{fig:2d_demo_banana}
-  \end{subfigure}
-
-  \vspace{0.35em}
-
-  \begin{subfigure}[t]{0.95\linewidth}
-    \centering
-    \safeincludegraphics[width=\linewidth]{../figures/2d_demo_tuned/squiggly_demo.png}
-    \caption{Squiggly target: initial and short-run final particle states.}
-    \label{fig:2d_demo_squiggly}
-  \end{subfigure}
-  \caption{2D target visualization panels produced with Adapt-MR-SVGD under
-  visualization-only settings. Each subfigure shows target-density contours with
-  initial particles (left) and short-run final particles (right).}
-  \label{fig:2d_demo_panel}
-\end{figure}
-
-\begin{figure}[t]
-  \ContinuedFloat
-  \centering
-  \begin{subfigure}[t]{0.95\linewidth}
-    \centering
-    \safeincludegraphics[width=\linewidth]{../figures/2d_demo_tuned/two_moons_demo.png}
-    \caption{Two-moons target: initial and short-run final particle states.}
-    \label{fig:2d_demo_two_moons}
-  \end{subfigure}
-
-  \vspace{0.35em}
-
-  \begin{subfigure}[t]{0.95\linewidth}
-    \centering
-    \safeincludegraphics[width=\linewidth]{../figures/2d_demo_tuned/ring_demo.png}
-    \caption{Ring target: initial and short-run final particle states.}
-    \label{fig:2d_demo_ring}
-  \end{subfigure}
-  \caption[]{2D target visualization panels (continued).}
-\end{figure}
-
-\begin{table}[t]
-  \centering
-  \scriptsize
-  \setlength{\tabcolsep}{3pt}
-  \begin{tabular}{lcccccc}
-    \toprule
-    Method & Fails$\downarrow$ & KSD$\downarrow$ & mean logp$\uparrow$ & ESS$\uparrow$ & grad evals$\downarrow$ & wall (s)$\downarrow$ \\
-    \midrule
-    Adapt-MR-SVGD & 0 & 0.308 & -0.175 & 128.0 & 182 & 0.79 \\
-    MR-SVGD & 0 & 40.13 & -278.0 & 121.8 & 80 & 1.13 \\
-    SVGD & 4 & 26.02 & $-1.93\times 10^4$ & 128.0 & 80 & 0.32 \\
-    Strang-SVGD & 4 & 30.09 & $-1.20\times 10^5$ & 121.7 & 121 & 1.55 \\
-    \bottomrule
-  \end{tabular}
-  \caption{2D targets quality-cost summary across particle methods. Entries are
-  medians over the $25$ target-seed runs, using the best checkpoint selected by
-  the KSD monitor for each run. ``Fails'' counts runs whose KSD monitor never
-  attained a finite value; methods are ordered first by failure count and then
-  by median KSD. KSD is the primary distributional quality metric; mean log
-  probability is reported as a secondary score, ESS as a supplemental mixing
-  indicator, and gradient evaluations / wall time as cost metrics. Moment
-  errors and grid $L_1$ remain diagnostic quantities and are omitted from this
-  main summary. The main pattern is that Adapt-MR-SVGD is the only zero-failure
-  particle method and gives the best overall KSD across the suite, while banana
-  shows little separation and funnel remains a nuanced exception.}
-  \label{tab:2d_summary}
-\end{table}
-
-Across the full 2D suite, Adapt-MR-SVGD gives the strongest overall
-distributional fidelity: it is the only particle method with zero failures,
-attains the best overall median KSD, and also attains the best median mean
-log-density while retaining high ESS. The gain is concentrated on the
-geometry-driven ring, squiggly, and two-moons targets, where Adapt-MR-SVGD
-achieves the best mean KSD over seeds (approximately $0.231$, $1.03$, and
-$0.308$, respectively) and the single-rate particle methods degrade sharply.
-On the easier banana target, by contrast, all particle methods attain nearly
-identical KSD values around $0.116$, indicating that multirate treatment is
-not especially beneficial when the target geometry is comparatively mild.
-
-The funnel target remains the main exception. Fixed MR-SVGD attains the best
-mean KSD on funnel ($0.261$ versus $0.456$ for Adapt-MR-SVGD), but
-Adapt-MR-SVGD still remains fully stable and yields substantially better mean
-log-density ($-0.023$ versus $-2.89$). Vanilla SVGD and Strang-SVGD each fail
-on four of the five funnel seeds, so finite-run medians alone would understate
-their instability; this is why \cref{tab:2d_summary} reports failure counts
-alongside the quality and cost summaries. Overall, these 2D results sharpen the
-main qualitative claim: adaptive multirate integration is most valuable when
-the interaction between drift and repulsion becomes strongly geometry-dependent,
-rather than as a uniform improvement on every benign target. In this setting,
-ESS is much less discriminative than KSD and mean log-density, so we treat it
-as a supplemental mixing indicator rather than a primary quality metric.
-
-\subsection{Mixture2D (mix8)}
-
-This benchmark emphasizes multimodal exploration and mass allocation across
-modes. All methods start from the same small Gaussian centered at the origin,
-away from the modal ring, and then run for a fixed budget of 1,000 iterations
-with checkpointing every 20 steps across 5 seeds. For this benchmark we use a
-shared multiscale RBF kernel with bandwidth factors $\{0.5,1,2\}$ for all
-particle methods so that local spacing and longer-range repulsion are both
-represented on the modal ring. We treat this as an experimental kernel-choice
-ablation rather than a change to the multirate update itself; prior SVGD work
-has also considered broader kernel families beyond a single scalar RBF
-\cite{wang2019matrixsvgd,stordal2021pkernel}. We define mode coverage by assigning each sample
-to its nearest mixture center and counting a mode as covered once it carries at
-least 5\% of the empirical mass. The primary metrics are mode coverage,
-normalized mode entropy, and mode imbalance; KSD and mean log
-probability are retained as secondary diagnostics, with ESS reported as a
-supplemental mixing proxy. Here imbalance is computed from the same
-nearest-center empirical mode masses and measures deviation from uniform mass
-allocation across the eight modes.
-
-\begin{figure}[t]
-  \centering
-  \safeincludegraphics[width=0.9\linewidth]{../figures/mixture2d/mix8/mix8_summary_metric_panels.png}
-  \caption{Mixture2D (mix8) fixed-budget final-checkpoint summary across methods.
-  The four
-  panels report mode coverage, mode entropy, mode imbalance, and KSD;
-  markers show mean values across seeds and error bars indicate one standard
-  deviation. Higher is better for coverage and entropy, while lower is better
-  for mode imbalance and KSD.}
-  \label{fig:mix8_summary}
-\end{figure}
-
-\begin{table}[t]
-  \centering
-  \small
-  \setlength{\tabcolsep}{7pt}
-  \caption{Mixture2D (mix8) mean final metrics over five seeds at the fixed
-  1,000-iteration budget. Higher is better for coverage and entropy; lower is
-  better for KSD. We omit minimum mass because it is zero for all methods at
-  this budget. This table summarizes the fixed-budget multimodal result:
-  Adapt-MR-SVGD gives the strongest overall exploration, while vanilla and
-  Strang spread more than MR-SVGD but remain far less stable by KSD.}
-  \begin{tabular}{lrrr}
-    \toprule
-    Method & Coverage$\uparrow$ & Entropy$\uparrow$ & KSD$\downarrow$ \\
-    \midrule
-    Adapt-MR-SVGD & 0.500 & 0.544 & 0.360 \\
-    SVGD          & 0.375 & 0.453 & 3162.9 \\
-    Strang-SVGD   & 0.325 & 0.403 & 3883.0 \\
-    MR-SVGD       & 0.250 & 0.238 & 74.3 \\
-    SGHMC         & 0.125 & 0.000 & 2.29 \\
-    SGLD          & 0.125 & 0.000 & 2.53 \\
-    \bottomrule
-  \end{tabular}
-  \label{tab:mix8_summary}
-\end{table}
-
-Under this harder off-mode initialization, adaptive MR-SVGD still gives the
-strongest overall multimodal exploration at the fixed budget, now reaching the
-highest mean final mode coverage and mode entropy across seeds
-($0.500$ and $0.544$, respectively); \cref{tab:mix8_summary} provides the
-corresponding mean-over-seeds summary, while \cref{fig:mix8_summary} carries
-the cross-seed variability. The shared multiscale kernel also makes the
-single-rate particle baselines more competitive than under the plain single-RBF
-setting: vanilla SVGD and Strang-SVGD both cover more modes and attain higher
-mode entropy, but their KSD values remain far worse than the adaptive method,
-so the extra spread still comes with much weaker stability. Fixed MR-SVGD
-remains stable and slightly improves its KSD over the single-RBF version, but
-it does not match the adaptive variant on the main multimodal metrics. The
-imbalance panel in \cref{fig:mix8_summary} complements coverage and entropy by
-showing that the adaptive method also allocates mass more evenly across the
-discovered modes. SGLD and SGHMC remain trapped in a single mode, with final
-coverage fixed at $0.125$ and zero mode entropy. The minimum mass statistic is
-still zero for all methods at this budget, so in this redesigned benchmark
-coverage, entropy, and imbalance are the informative multimodal diagnostics
-while KSD remains a secondary stability measure.
-
-\subsection{UCI logistic regression}
-
-We benchmark Bayesian logistic regression on breast\_cancer, ionosphere,
-spambase, and a5a, using a Gaussian prior on weights (as implemented in the
-benchmark script) and 5 seeds per dataset. We report test accuracy, NLL, ECE,
-ESS, and mean log probability; KSD is optional and disabled by default in this
-benchmark configuration. Results are summarized with per-dataset panels in
-\cref{fig:uci_summary} and a grouped best-NLL summary table (particle methods
-only) in \cref{tab:uci_nll_summary}; both use the best finite-NLL checkpoint
-selected under the global predictive stopping policy
-\cite{dua2019uci}.
-
-\begin{figure}[t]
-  \centering
-  \begin{subfigure}[t]{0.9\linewidth}
-    \centering
-    \safeincludegraphics[width=\linewidth]{../figures/uci/breast_cancer/breast_cancer_summary_metric_panels.png}
-    \caption{breast\_cancer}
-    \label{fig:uci_breast_cancer}
-  \end{subfigure}
-
-  \vspace{0.25em}
-
-  \begin{subfigure}[t]{0.9\linewidth}
-    \centering
-    \safeincludegraphics[width=\linewidth]{../figures/uci/ionosphere/ionosphere_summary_metric_panels.png}
-    \caption{ionosphere}
-    \label{fig:uci_ionosphere}
-  \end{subfigure}
-  \caption{UCI logistic regression summary across datasets. Each subpanel
-  reports the best-checkpoint mean across seeds with one standard deviation for
-  test accuracy, NLL, ECE, and ESS, where the checkpoint is selected by the
-  NLL-based early-stop monitor. Higher is better for accuracy and ESS; lower is
-  better for NLL and ECE. Remaining datasets are shown in the continued panel.}
-  \label{fig:uci_summary}
-\end{figure}
-
-\begin{figure}[t]
-  \ContinuedFloat
-  \centering
-  \begin{subfigure}[t]{0.9\linewidth}
-    \centering
-    \safeincludegraphics[width=\linewidth]{../figures/uci/spambase/spambase_summary_metric_panels.png}
-    \caption{spambase}
-    \label{fig:uci_spambase}
-  \end{subfigure}
-
-  \vspace{0.25em}
-
-  \begin{subfigure}[t]{0.9\linewidth}
-    \centering
-    \safeincludegraphics[width=\linewidth]{../figures/uci/a5a/a5a_summary_metric_panels.png}
-    \caption{a5a}
-    \label{fig:uci_a5a}
-  \end{subfigure}
-  \caption[]{UCI logistic regression summary across datasets (continued).}
-\end{figure}
-
-\begin{table}[t]
-  \centering
-  \scriptsize
-  \setlength{\tabcolsep}{4pt}
-  \begin{tabular}{lccc}
-    \toprule
-    Method & Best NLL$\downarrow$ & Acc@best NLL$\uparrow$ & Wall@best (s)$\downarrow$ \\
-    \midrule
-    \multicolumn{4}{l}{\textit{breast\_cancer}} \\
-    Adapt-MR-SVGD & 0.062 & 0.986 & 8.9 \\
-    MR-SVGD & 0.089 & 0.981 & 6.2 \\
-    Strang-SVGD & 0.094 & 0.979 & 6.5 \\
-    SVGD & 0.104 & 0.979 & 2.0 \\
-    \midrule
-    \multicolumn{4}{l}{\textit{ionosphere}} \\
-    Adapt-MR-SVGD & 0.383 & 0.900 & 3.4 \\
-    SVGD & 0.438 & 0.906 & 0.9 \\
-    Strang-SVGD & 0.447 & 0.897 & 5.2 \\
-    MR-SVGD & 0.500 & 0.897 & 6.1 \\
-    \midrule
-    \multicolumn{4}{l}{\textit{spambase}} \\
-    SVGD & 0.288 & 0.918 & 1.3 \\
-    Strang-SVGD & 0.288 & 0.924 & 8.8 \\
-    Adapt-MR-SVGD & 0.361 & 0.882 & 8.1 \\
-    MR-SVGD & 0.467 & 0.877 & 4.3 \\
-    \midrule
-    \multicolumn{4}{l}{\textit{a5a}} \\
-    Adapt-MR-SVGD & 0.453 & 0.778 & 36.5 \\
-    Strang-SVGD & 0.471 & 0.836 & 3.0 \\
-    MR-SVGD & 0.474 & 0.809 & 14.6 \\
-    SVGD & 0.478 & 0.835 & 2.6 \\
-    \bottomrule
-  \end{tabular}
-  \caption{UCI logistic-regression particle-method summary over five seeds. For
-  each dataset and method, we select the best finite-NLL checkpoint per seed
-  and report the method-wise mean of that best NLL, the accuracy at that
-  checkpoint, and the corresponding wall time. ECE is summarized in the
-  per-dataset panels of \cref{fig:uci_summary}.}
-  \label{tab:uci_nll_summary}
-\end{table}
-
-UCI logistic regression serves mainly as a predictive sanity check rather than
-as the flagship evidence for multirate gains. The rankings are mixed.
-Adapt-MR-SVGD gives the best overall NLL on breast\_cancer, while on
-ionosphere, spambase, and a5a either SGHMC or a single-rate particle method is
-competitive or superior. This weaker separation is consistent with the main
-claim of the paper: multirate benefits are most pronounced on anisotropic,
-multimodal, or hierarchical posteriors, whereas lower-dimensional logistic
-regression tasks show smaller and less uniform gains. On the smaller datasets,
-accuracy is also tightly quantized, so NLL is the more discriminative summary.
-
-\subsection{Bayesian neural network}
-
-We evaluate a one-hidden-layer BNN (hidden width 32) on spambase and a5a,
-using a Gaussian prior, a fixed split seed, and 5 sampler seeds per dataset.
-For each dataset, we carve a validation split from the training data, select
-checkpoints by validation NLL under the global predictive stopping policy, and
-report test accuracy, test NLL, test ECE, ESS, and mean log probability at the
-selected checkpoint. KSD is optional and disabled by default in this
-configuration.
-
-\begin{figure}[t]
-  \centering
-  \begin{subfigure}[t]{0.9\linewidth}
-    \centering
-    \safeincludegraphics[width=\linewidth]{../figures/bnn/spambase/spambase_summary_metric_panels.png}
-    \caption{spambase}
-    \label{fig:bnn_spambase}
-  \end{subfigure}
-
-  \vspace{0.25em}
-
-  \begin{subfigure}[t]{0.9\linewidth}
-    \centering
-    \safeincludegraphics[width=\linewidth]{../figures/bnn/a5a/a5a_summary_metric_panels.png}
-    \caption{a5a}
-    \label{fig:bnn_a5a}
-  \end{subfigure}
-  \caption{BNN summary across datasets. Each subpanel reports the
-  best-checkpoint mean across seeds with one standard deviation for test
-  accuracy, NLL, ECE, and ESS, where the checkpoint is selected by the
-  validation-NLL early-stop monitor. Higher is better for accuracy and ESS;
-  lower is better for NLL and ECE.}
-  \label{fig:bnn_summary}
-\end{figure}
-
-\begin{table}[t]
-  \centering
-  \scriptsize
-  \setlength{\tabcolsep}{4pt}
-  \begin{tabular}{lccc}
-    \toprule
-    Method & Best NLL$\downarrow$ & Acc@best NLL$\uparrow$ & Wall@best (s)$\downarrow$ \\
-    \midrule
-    \multicolumn{4}{l}{\textit{spambase}} \\
-    Adapt-MR-SVGD & 0.174 & 0.940 & 35.7 \\
-    Strang-SVGD & 0.187 & 0.930 & 51.2 \\
-    SVGD & 0.187 & 0.930 & 21.1 \\
-    MR-SVGD & 0.188 & 0.931 & 51.5 \\
-    \midrule
-    \multicolumn{4}{l}{\textit{a5a}} \\
-    MR-SVGD & 0.334 & 0.844 & 5.3 \\
-    Adapt-MR-SVGD & 0.347 & 0.836 & 8.1 \\
-    SVGD & 0.362 & 0.834 & 17.5 \\
-    Strang-SVGD & 0.378 & 0.832 & 49.6 \\
-    \bottomrule
-  \end{tabular}
-  \caption{BNN particle-method summary over five seeds. For each dataset and
-  method, we select the best finite-validation-NLL checkpoint per seed and
-  report the method-wise mean of the corresponding test NLL, test accuracy, and
-  wall time. ECE is summarized in the per-dataset panels of
-  \cref{fig:bnn_summary}.}
-  \label{tab:bnn_nll_summary}
-\end{table}
-
-The two BNN datasets give a more informative but less uniform predictive story
-than the earlier small-data configuration. On spambase, Adapt-MR-SVGD attains
-the best overall test NLL ($0.174$) and the highest mean test accuracy
-($0.940$), with the remaining particle methods clustered together around
-$0.187$. On a5a, the ranking shifts: MR-SVGD attains the best overall test NLL
-($0.334$) and the highest mean test accuracy ($0.844$), Adapt-MR-SVGD remains
-the second-best particle method ($0.347$), and the single-rate particle
-variants are again worse. The chain baselines are competitive in isolated
-cases---SGHMC on spambase and SGLD on a5a---but the multirate particle methods
-form the strongest pair overall across the two datasets. This makes the BNN
-benchmark corroborative rather than primary evidence: multirate structure improves
-predictive quality over the single-rate particle baselines, but the preferred
-multirate variant depends on the dataset.
-
-\subsection{Large-scale hierarchical logistic regression}
-
-To stress-test multirate behavior in a high-dimensional anisotropic posterior,
-we use a large-scale hierarchical logistic regression benchmark with grouped
-random effects. The model combines high parameter dimension with funnel-like
-geometry induced by a global scale parameter, making it a natural benchmark for
-joint quality-cost assessment of SVGD variants.
-
-\paragraph{Problem definition}
-Given binary outcomes $y_i\in\{0,1\}$, sparse features $x_i\in\mathbb{R}^p$, and
-group indices $g_i\in\{1,\ldots,G\}$, we define
-\begin{equation}
-\begin{aligned}
-y_i \mid x_i,g_i,\beta,\alpha,u
-&\sim \operatorname{Bernoulli}\!\left(
-\sigma\!\left(\alpha + x_i^\top\beta + u_{g_i}\right)\right), \\
-&\qquad i=1,\ldots,n,
-\end{aligned}
-\label{eq:hlr-likelihood}
-\end{equation}
-where $\sigma(\cdot)$ is the logistic link. We use a non-centered
-parameterization for group effects,
-\begin{equation}
-\begin{aligned}
-\beta &\sim \mathcal{N}(0,\sigma_\beta^2 I_p), &
-\alpha &\sim \mathcal{N}(0,\sigma_\alpha^2), \\
-u_j &= \tau z_j, &
-z_j &\sim \mathcal{N}(0,1), \\
-\log\tau &\sim \mathcal{N}(\mu_\tau,\sigma_\tau^2),
-\end{aligned}
-\label{eq:hlr-priors}
-\end{equation}
-for $j=1,\ldots,G$. The posterior (up to normalization) is
-\begin{equation}
-\begin{aligned}
-\pi(\theta) &\propto
-\left[\prod_{i=1}^{n}
-\operatorname{Bernoulli}\!\left(
-y_i;\sigma\!\left(\alpha+x_i^\top\beta+u_{g_i}\right)\right)\right] \\
-&\qquad \times p(\beta)\,p(\alpha)\,p(z)\,p(\log\tau), \\
-\theta &= (\beta,\alpha,z,\log\tau).
-\end{aligned}
-\label{eq:hlr-posterior}
-\end{equation}
-
-\paragraph{Protocol}
-For the long-tail grouped setting, we run $n=10^6$ observations with $p=300$
-features and $G=50{,}000$ groups. Each method runs up to 1,000 iterations with
-checkpointing every 20 iterations and 5 random seeds; particle methods use 32
-particles, and single-chain baselines use a rolling-window evaluation set. This
-benchmark follows the global predictive NLL-based stopping policy and adds a
-two-checkpoint non-finite fail-fast guard because unstable methods can quickly
-leave the finite-NLL regime. ECE is reported as a metric but is not used as a
-stopping trigger.
-
-\begin{table}[t]
-  \centering
-  \scriptsize
-  \setlength{\tabcolsep}{4pt}
-  \begin{tabular}{lcccc}
-    \toprule
-    Method & Finite-best$\uparrow$ & Best NLL$\downarrow$ & Acc@best NLL$\uparrow$ & Wall@best (s)$\downarrow$ \\
-    \midrule
-    Adapt-MR-SVGD & 5/5 & 0.613 & 0.658 & 123.3 \\
-    MR-SVGD & 5/5 & 0.623 & 0.656 & 92.5 \\
-    SGHMC & 2/5 & 0.860 & 0.560 & 77.9 \\
-    SVGD & 3/5 & 0.885 & 0.577 & 154.2 \\
-    Strang-SVGD & 3/5 & 1.263 & 0.579 & 163.6 \\
-    SGLD & 4/5 & 1.823 & 0.576 & 101.6 \\
-    \bottomrule
-  \end{tabular}
-  \caption{HLR long-tail summary over five seeds. For each seed and method, we
-  select the best finite-NLL checkpoint; the table reports method-wise means of
-  that best NLL, the accuracy at that checkpoint, and the corresponding wall
-  time. ``Seeds with finite best''
-  counts runs that reached at least one finite-NLL checkpoint before stopping.
-  This table is the main hierarchical stress test: Adapt-MR-SVGD achieves the
-  best best-NLL while remaining finite on all seeds, and MR-SVGD is the
-  closest lower-cost baseline.}
-  \label{tab:hlr_longtail_summary}
-\end{table}
-
-\paragraph{Result summary}
-\cref{tab:hlr_longtail_summary} shows that Adapt-MR-SVGD achieves the best mean
-best-NLL while remaining finite across all seeds. MR-SVGD is a close second in
-NLL and reaches its best checkpoint faster on average (92.5\,s versus
-123.3\,s). SVGD/Strang-SVGD and SGHMC show frequent non-finite behavior in this
-regime, while SGLD remains finite more often but with substantially worse NLL.
-
-\begin{table}[t]
-  \centering
-  \scriptsize
-  \setlength{\tabcolsep}{4pt}
-  \begin{tabular}{lcccc}
-    \toprule
-    Method & Finite-best$\uparrow$ & Best NLL$\downarrow$ & Acc@best NLL$\uparrow$ & Wall@best (s)$\downarrow$ \\
-    \midrule
-    Adapt-MR-SVGD & 5/5 & 0.681 & 0.601 & 94.6 \\
-    SVGD & 1/5 & 0.700 & 0.548 & 54.9 \\
-    MR-SVGD & 5/5 & 0.706 & 0.597 & 44.2 \\
-    Strang-SVGD & 1/5 & 0.708 & 0.584 & 241.7 \\
-    SGLD & 5/5 & 0.743 & 0.528 & 66.0 \\
-    SGHMC & 5/5 & 0.791 & 0.554 & 79.7 \\
-    \bottomrule
-  \end{tabular}
-  \caption{HLR uniform-group summary over five seeds. As in
-  \cref{tab:hlr_longtail_summary}, each entry uses the best finite-NLL
-  checkpoint per seed and reports method-wise means for NLL, accuracy at that
-  checkpoint, and wall time.}
-  \label{tab:hlr_uniform_summary}
-\end{table}
-
-\paragraph{Uniform-group sensitivity check}
-\cref{tab:hlr_uniform_summary} provides a compact robustness check under
-uniform group assignments. Adapt-MR-SVGD remains best in mean best-NLL with
-full finite-seed coverage (5/5), and MR-SVGD remains close while being fastest
-among methods with full finite coverage. This supports the same ordering seen
-in the long-tail regime while keeping the long-tail setting as the primary
-stress test for our main claim.

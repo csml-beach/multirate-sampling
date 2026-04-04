@@ -21,8 +21,6 @@ This file tracks all \label{} keys used in equations, figures, and tables in the
 - eq:ksd-stein-kernel — Score-Stein kernel used in the KSD definition
 - eq:ksd-metric — Empirical kernel Stein discrepancy used for evaluation
 - eq:mean-logp-metric — Mean log-density (log-score) evaluation metric
-- eq:ess-autocorr — Autocovariance/autocorrelation definitions for ESS
-- eq:ess-metric — Effective sample size (ESS) estimator with truncated autocorrelation sum
 - eq:hlr-likelihood — Hierarchical logistic-regression likelihood for grouped binary outcomes
 - eq:hlr-priors — Non-centered hierarchical priors for global and group-level effects
 - eq:hlr-posterior — Posterior density (up to normalization) for the large-scale HLR benchmark
