@@ -44,8 +44,6 @@ Code accompanying the multirate SVGD submission. The repository implements fixed
 - `figures/`: generated plots.
 - `animations/`: generated GIFs/animations.
 - [`docs/README.md`](docs/README.md): detailed benchmark runbook.
-- [`docs/ideas.md`](docs/ideas.md): research notes and experiment ideas.
-- [`docs/paper_plan.md`](docs/paper_plan.md): paper plan and drafting checklist.
 - [`paper/`](paper/): manuscript source.
 
 ## Run on GitHub Codespaces (Recommended)
@@ -115,6 +113,4 @@ For full benchmark-by-benchmark commands and output paths, see
 ## Documentation
 
 - Detailed benchmark workflows: [`docs/README.md`](docs/README.md)
-- Design notes: [`docs/ideas.md`](docs/ideas.md)
-- Paper plan: [`docs/paper_plan.md`](docs/paper_plan.md)
 - Manuscript label index: [`paper/labels.md`](paper/labels.md)

@@ -20,7 +20,7 @@ Status key: [ ] planned  [~] drafting  [x] approved  [!] needs input
 
 2) Introduction (includes Related Work subsection)
 - Goal: Background on SVGD, stiffness in repulsive vs drift terms, and motivation for multirate integration; position vs SGLD/SGHMC; state contributions; include a Related Work subsection.
-- Sources: `README.md`, `docs/ideas.md`, `jax/samplers.py`, `paper/Bib/sarshar.bib`.
+- Sources: `README.md`, internal design notes, `jax/samplers.py`, `paper/Bib/sarshar.bib`.
 - Open questions: [ ] none for this pass.
 - Status: [x] approved
 
@@ -45,7 +45,7 @@ Status key: [ ] planned  [~] drafting  [x] approved  [!] needs input
 
 5) Conclusions
 - Goal: Summarize findings, practical guidance, and future work (e.g., adaptive schedules, approximate kernels).
-- Sources: `docs/ideas.md`, experimental outcomes.
+- Sources: internal design notes, experimental outcomes.
 - Open questions: [ ] none for this pass.
 - Status: [x] approved
 
