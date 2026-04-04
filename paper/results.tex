@@ -49,8 +49,7 @@ achieves the strongest quality at a higher computational cost.
 In this benchmark, we evaluate a suite of 2D targets with varying geometry and multimodality, including banana, ring, squiggly, two-moons, and funnel.
 To contextualize the geometry of these targets, \cref{fig:2d_demo_panel} shows
 short-run visualization panels for representative cases.
-Results are summarized over five seeds, each with 1,000 iterations and
-checkpointing every 20 steps. Here KSD serves both as the stop monitor and the
+Here KSD serves both as the stop monitor and the
 primary quality metric. We add a safety guard against non-finite KSD values in
 the stopping policy, because several targets can produce unstable particle
 trajectories. The main comparison in \cref{tab:2d_summary} focuses on KSD, mean
@@ -168,9 +167,7 @@ distributional fidelity with competitive cost across the harder geometries.
 
 Mix8 is an equal-weight eight-component Gaussian mixture with modes arranged
 uniformly on a ring of radius $4$. All methods start from the same small
-Gaussian centered at the origin, away from those modes, and then run for a
-fixed budget of 1,000 iterations with checkpointing every 20 steps across 5
-seeds. For this benchmark we use a
+Gaussian centered at the origin, away from those modes. For this benchmark we use a
 shared multiscale RBF kernel with bandwidth factors $\{0.5,1,2\}$ for all
 particle methods so that local spacing and longer-range repulsion are both
 represented. This also demonstrates that the multirate formulation is agnostic
@@ -223,8 +220,7 @@ KSD values do not indicate successful multimodal exploration.
 
 We benchmark Bayesian logistic regression on four UCI datasets
 \cite{dua2019uci}: breast cancer, ionosphere, spambase, and a5a. All four are
-binary tasks. Each dataset is run over five seeds with a
-Gaussian prior on the regression weights. We emphasize test NLL, accuracy, and ECE, with ESS reported as a
+binary tasks with a Gaussian prior on the regression weights. We emphasize test NLL, accuracy, and ECE, with ESS reported as a
 supplemental mixing diagnostic. Per-dataset summaries are shown in
 \cref{fig:uci_summary}, and the particle-only best-NLL summary is reported in
 \cref{tab:uci_nll_summary}; both use the best finite-NLL checkpoint selected by
@@ -329,9 +325,9 @@ appear on the more anisotropic, multimodal, and hierarchical targets.
 
 \subsection{Bayesian neural network}
 
-We evaluate a one-hidden-layer Bayesian neural network (hidden width 32) on
-Spambase and a5a, using a Gaussian prior, one shared train/validation split per
-dataset, and five sampler seeds. Checkpoints are selected by validation NLL
+We evaluate a one-hidden-layer Bayesian neural network (width 32) on
+Spambase and a5a. We use a Gaussian prior with one shared validation split per
+dataset. Checkpoints are selected by validation NLL
 under the global predictive stopping rule, and we report test NLL, accuracy,
 ECE, ESS, and mean log probability at the selected checkpoint. Per-dataset
 summaries appear in \cref{fig:bnn_summary}.
@@ -398,7 +394,7 @@ remain competitive, but with ESS far below the particle methods.
 \subsection{Large-scale hierarchical logistic regression}
 
 To stress-test multirate behavior in a high-dimensional anisotropic posterior,
-we study a large-scale hierarchical logistic regression benchmark with grouped
+we study a large-scale hierarchical logistic regression (HLR) benchmark with grouped
 random effects. The combination of many group-level effects and a global scale
 parameter induces funnel-like geometry and strong local stiffness, making this
 benchmark a demanding joint test of predictive quality, robustness, and cost
@@ -443,9 +439,7 @@ y_i;\sigma\!\left(\alpha+x_i^\top\beta+u_{g_i}\right)\right)\right] \\
 
 \paragraph{Protocol}
 Our primary HLR benchmark uses a long-tail group-frequency distribution with
-$n=10^6$ observations, $p=300$ sparse features, and $G=50{,}000$ groups. Each
-method runs for up to 1,000 iterations with checkpoints every 20 iterations
-over five seeds. Particle methods use 32 particles, whereas single-chain
+$n=10^6$ observations, $p=300$ sparse features, and $G=50{,}000$ groups. Particle methods use 32 particles, whereas single-chain
 baselines are evaluated with rolling-window checkpoint summaries. As in the
 other predictive benchmarks, checkpoint selection and early stopping are driven
 by predictive NLL; here we additionally stop after two consecutive non-finite

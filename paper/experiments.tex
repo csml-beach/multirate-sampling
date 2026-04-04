@@ -142,12 +142,12 @@ with pronounced instability additionally use a short non-finite fail-fast
 guard, which we note locally when it is active.
 
 \paragraph{Checkpointing and model selection}
-All benchmarks use checkpointed evaluation at benchmark-specific intervals and
-a patience-based early-stopping rule triggered by persistent degradation of a
+Unless noted otherwise, experiments run for up to 1,000 iterations over five
+seeds with checkpointed evaluation every 20 iterations. All benchmarks use a
+patience-based early-stopping rule triggered by persistent degradation of a
 designated monitor metric. Pure sampling benchmarks use KSD as the monitor
 (50D Gaussian, 2D synthetic targets, and Mixture2D), whereas predictive
 benchmarks use held-out NLL (UCI logistic regression, BNN, and HLR). For each
 run, we retain the best finite checkpoint under that monitor before stopping.
 Accuracy and ECE are reported for predictive tasks but are never used as
 stopping criteria.
-
