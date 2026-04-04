@@ -49,190 +49,175 @@ achieves the strongest quality at a higher computational cost.
 In this benchmark, we evaluate a suite of 2D targets with varying geometry and multimodality, including banana, ring, squiggly, two-moons, and funnel.
 To contextualize the geometry of these targets, \cref{fig:2d_demo_panel} shows
 short-run visualization panels for representative cases.
-The metrics are averaged over five
-seeds, each with 1,000 iterations and checkpointing every 20 steps. Here KSD serves
-both as the stop monitor and the primary quality metric. We add a safety guard
-against non-finite KSD values in the stopping policy, because several targets
-can produce unstable particle trajectories. We report mean log probability as a secondary
-density-concentration score, gradient/kernel evaluations and wall time as cost
-metrics, and ESS as a supplemental mixing proxy. Moment errors and grid-based
-$L_1$ discrepancy are retained as diagnostics, but they are not used in the
-main 2D summary table in \cref{tab:2d_summary}.
+Results are summarized over five seeds, each with 1,000 iterations and
+checkpointing every 20 steps. Here KSD serves both as the stop monitor and the
+primary quality metric. We add a safety guard against non-finite KSD values in
+the stopping policy, because several targets can produce unstable particle
+trajectories. The main comparison in \cref{tab:2d_summary} focuses on KSD, mean
+log probability, gradient-evaluation cost, and wall time. The panels in
+\cref{fig:2d_demo_panel} are qualitative only and are included to illustrate
+target geometry and short-run particle behavior.
 
 \begin{figure}[t]
   \centering
-  \begin{subfigure}[t]{0.95\linewidth}
+  \begin{subfigure}[t]{0.84\linewidth}
     \centering
     \safeincludegraphics[width=\linewidth]{../figures/2d_demo_tuned/banana_demo.png}
-    \caption{Banana target: initial and short-run final particle states.}
+    \caption{Banana.}
     \label{fig:2d_demo_banana}
   \end{subfigure}
 
-  \vspace{0.35em}
+  \vspace{0.15em}
 
-  \begin{subfigure}[t]{0.95\linewidth}
+  \begin{subfigure}[t]{0.84\linewidth}
     \centering
     \safeincludegraphics[width=\linewidth]{../figures/2d_demo_tuned/squiggly_demo.png}
-    \caption{Squiggly target: initial and short-run final particle states.}
+    \caption{Squiggly.}
     \label{fig:2d_demo_squiggly}
   \end{subfigure}
+
+  \vspace{0.15em}
+
+  \begin{subfigure}[t]{0.84\linewidth}
+    \centering
+    \safeincludegraphics[width=\linewidth]{../figures/2d_demo_tuned/two_moons_demo.png}
+    \caption{Two moons.}
+    \label{fig:2d_demo_two_moons}
+  \end{subfigure}
+
+  \vspace{0.15em}
+
+  \begin{subfigure}[t]{0.84\linewidth}
+    \centering
+    \safeincludegraphics[width=\linewidth]{../figures/2d_demo_tuned/ring_demo.png}
+    \caption{Ring.}
+    \label{fig:2d_demo_ring}
+  \end{subfigure}
+
   \caption{2D target visualization panels produced with Adapt-MR-SVGD under
   visualization-only settings. Each subfigure shows target-density contours with
   initial particles (left) and short-run final particles (right).}
   \label{fig:2d_demo_panel}
 \end{figure}
 
-\begin{figure}[t]
-  \ContinuedFloat
-  \centering
-  \begin{subfigure}[t]{0.95\linewidth}
-    \centering
-    \safeincludegraphics[width=\linewidth]{../figures/2d_demo_tuned/two_moons_demo.png}
-    \caption{Two-moons target: initial and short-run final particle states.}
-    \label{fig:2d_demo_two_moons}
-  \end{subfigure}
-
-  \vspace{0.35em}
-
-  \begin{subfigure}[t]{0.95\linewidth}
-    \centering
-    \safeincludegraphics[width=\linewidth]{../figures/2d_demo_tuned/ring_demo.png}
-    \caption{Ring target: initial and short-run final particle states.}
-    \label{fig:2d_demo_ring}
-  \end{subfigure}
-  \caption[]{2D target visualization panels (continued).}
-\end{figure}
-
 \begin{table}[t]
   \centering
   \scriptsize
-  \setlength{\tabcolsep}{3pt}
-  \begin{tabular}{lcccccc}
+  \setlength{\tabcolsep}{4pt}
+  \begin{tabular}{lcccc}
     \toprule
-    Method & Fails$\downarrow$ & KSD$\downarrow$ & mean logp$\uparrow$ & ESS$\uparrow$ & grad evals$\downarrow$ & wall (s)$\downarrow$ \\
+    Method & Best KSD$\downarrow$ & mean logp@best$\uparrow$ & grad@best$\downarrow$ & wall@best (s)$\downarrow$ \\
     \midrule
-    Adapt-MR-SVGD & 0 & 0.308 & -0.175 & 128.0 & 182 & 0.79 \\
-    MR-SVGD & 0 & 40.13 & -278.0 & 121.8 & 80 & 1.13 \\
-    SVGD & 4 & 26.02 & $-1.93\times 10^4$ & 128.0 & 80 & 0.32 \\
-    Strang-SVGD & 4 & 30.09 & $-1.20\times 10^5$ & 121.7 & 121 & 1.55 \\
+    \multicolumn{5}{l}{\textit{Banana}} \\
+    Strang-SVGD & 0.114 & -0.426 & 100 & 1.35 \\
+    MR-SVGD & 0.114 & -0.392 & 80 & 1.13 \\
+    Adapt-MR-SVGD & 0.114 & -0.393 & 160 & 0.80 \\
+    SVGD & 0.114 & -0.391 & 80 & 0.32 \\
+    \addlinespace[0.3em]
+    \multicolumn{5}{l}{\textit{Funnel}} \\
+    MR-SVGD & 0.256 & -3.136 & 160 & 1.24 \\
+    Adapt-MR-SVGD & 0.357 & -0.197 & 84 & 0.40 \\
+    Strang-SVGD & 0.369 & -9.289 & 120 & 1.46 \\
+    SVGD & 0.377 & -6.801 & 160 & 0.46 \\
+    \addlinespace[0.3em]
+    \multicolumn{5}{l}{\textit{Ring}} \\
+    Adapt-MR-SVGD & 0.226 & -0.004 & 238 & 0.82 \\
+    MR-SVGD & 64.35 & -815.6 & 50 & 0.70 \\
+    SVGD & 131.6 & -3753 & 20 & 0.16 \\
+    Strang-SVGD & 665.7 & $-7.92\times 10^5$ & 240 & 2.79 \\
+    \addlinespace[0.3em]
+    \multicolumn{5}{l}{\textit{Squiggly}} \\
+    Adapt-MR-SVGD & 0.719 & -0.910 & 826 & 2.02 \\
+    Strang-SVGD & 22.49 & $-5.25\times 10^4$ & 200 & 2.47 \\
+    SVGD & 22.60 & $-2.81\times 10^4$ & 80 & 0.32 \\
+    MR-SVGD & 54.04 & -422.7 & 100 & 1.36 \\
+    \addlinespace[0.3em]
+    \multicolumn{5}{l}{\textit{Two moons}} \\
+    Adapt-MR-SVGD & 0.315 & -0.009 & 182 & 0.67 \\
+    MR-SVGD & 134.3 & -1250 & 40 & 0.60 \\
+    Strang-SVGD & 1892 & $-1.84\times 10^6$ & 120 & 1.55 \\
+    SVGD & 2085 & $-2.58\times 10^6$ & 80 & 0.34 \\
     \bottomrule
   \end{tabular}
-  \caption{2D targets quality-cost summary across particle methods. Entries are
-  medians over the $25$ target-seed runs, using the best checkpoint selected by
-  the KSD monitor for each run. ``Fails'' counts runs whose KSD monitor never
-  attained a finite value; methods are ordered first by failure count and then
-  by median KSD. KSD is the primary distributional quality metric; mean log
-  probability is reported as a secondary score, ESS as a supplemental mixing
-  indicator, and gradient evaluations / wall time as cost metrics. Moment
-  errors and grid $L_1$ remain diagnostic quantities and are omitted from this
-  main summary. The main pattern is that Adapt-MR-SVGD is the only zero-failure
-  particle method and gives the best overall KSD across the suite, while banana
-  shows little separation and funnel remains a nuanced exception.}
+  \caption{2D particle-method summary over five seeds. For each target and
+  method, we report medians over seeds at the best finite-KSD checkpoint.
+  Methods are ordered by median KSD within each target block. Banana shows
+  little separation, funnel remains nuanced, and Adapt-MR-SVGD is strongest on
+  ring, squiggly, and two moons.}
   \label{tab:2d_summary}
 \end{table}
 
-Across the full 2D suite, \cref{tab:2d_summary} shows that Adapt-MR-SVGD gives
-the strongest overall distributional fidelity: it is the only particle method
-with zero failures, attains the best overall median KSD, and also attains the
-best median mean log-density while retaining high ESS. The gain is
-concentrated on the geometry-driven ring, squiggly, and two-moons targets,
-where Adapt-MR-SVGD
-achieves the best mean KSD over seeds (approximately $0.231$, $1.03$, and
-$0.308$, respectively) and the single-rate particle methods degrade sharply.
-On the easier banana target, by contrast, all particle methods attain nearly
-identical KSD values around $0.116$, consistent with the comparatively mild
-geometry illustrated in \cref{fig:2d_demo_panel}; here multirate treatment is
-not especially beneficial.
+\Cref{tab:2d_summary} shows a sumamry of the metrics for the 2D suite.
+Banana is effectively a tie: all four particle methods reach nearly identical
+best KSD values, with only minor differences in mean log probability and cost.
+The other targets separate more sharply. On ring, squiggly, and two moons,
+Adapt-MR-SVGD is the only method that stays near the target while keeping KSD
+below $1$, whereas the other particle methods remain orders of magnitude worse
+in both KSD and mean log probability. MR-SVGD is often cheaper in
+gradient-evaluation count on those targets, but it pays for that reduction with
+substantially weaker fidelity.
 
-The funnel target remains the main exception. Fixed MR-SVGD attains the best
-mean KSD on funnel ($0.261$ versus $0.456$ for Adapt-MR-SVGD), but
-Adapt-MR-SVGD still remains fully stable and yields substantially better mean
-log-density ($-0.023$ versus $-2.89$). Vanilla SVGD and Strang-SVGD each fail
-on four of the five funnel seeds, so finite-run medians alone would understate
-their instability; this is why \cref{tab:2d_summary} reports failure counts
-alongside the quality and cost summaries. Overall, these 2D results sharpen the
-main qualitative claim: adaptive multirate integration is most valuable when
-the interaction between drift and repulsion becomes strongly geometry-dependent,
-rather than as a uniform improvement on every benign target. In this setting,
-ESS is much less discriminative than KSD and mean log-density, so we treat it
-as a supplemental mixing indicator rather than a primary quality metric.
+Funnel is the main exception. There MR-SVGD attains the best median KSD, but
+Adapt-MR-SVGD has much better median mean log probability while also using
+fewer gradient evaluations and less wall time. Taken together, these results
+show that adaptive multirate splitting is not uniformly best on every benign 2D
+target, but it is the only particle variant that combines strong
+distributional fidelity with competitive cost across the harder geometries.
 
 \subsection{Mixture2D (mix8)}
 
-This benchmark emphasizes multimodal exploration and mass allocation across
-modes. All methods start from the same small Gaussian centered at the origin,
-away from the modal ring, and then run for a fixed budget of 1,000 iterations
-with checkpointing every 20 steps across 5 seeds. For this benchmark we use a
+Mix8 is an equal-weight eight-component Gaussian mixture with modes arranged
+uniformly on a ring of radius $4$. All methods start from the same small
+Gaussian centered at the origin, away from those modes, and then run for a
+fixed budget of 1,000 iterations with checkpointing every 20 steps across 5
+seeds. For this benchmark we use a
 shared multiscale RBF kernel with bandwidth factors $\{0.5,1,2\}$ for all
 particle methods so that local spacing and longer-range repulsion are both
-represented on the modal ring. We treat this as an experimental kernel-choice
-ablation rather than a change to the multirate update itself; prior SVGD work
-has also considered broader kernel families beyond a single scalar RBF
-\cite{wang2019matrixsvgd,stordal2021pkernel}. Let $p_k$ denote the empirical
-mass assigned to mixture center $k$ by nearest-center assignment. We define
-mode coverage as the fraction of modes with $p_k\ge 0.05$, normalized mode
-entropy as $-\sum_{k=1}^{K} p_k\log p_k / \log K$, and mode imbalance as the
-standard deviation of $(p_1,\ldots,p_K)$. The primary metrics are therefore
-mode coverage, normalized mode entropy, and mode imbalance; KSD and mean log
-probability are retained as secondary diagnostics, with ESS reported as a
-supplemental mixing proxy.
+represented. This also demonstrates that the multirate formulation is agnostic
+to kernel choice: here we use a richer kernel than a single-bandwidth RBF to
+capture both local and longer-range interactions. Prior SVGD work has also
+considered broader kernel families beyond a single scalar RBF
+\cite{wang2019matrixsvgd,stordal2021pkernel}. 
+
+Let $a(x_i)$ denote the nearest
+mixture center for particle $x_i$, and let
+\[
+p_k=\frac{1}{N}\sum_{i=1}^{N}\mathbf{1}\{a(x_i)=k\}
+\]
+be the empirical mass of mode $k$. We define mode coverage as the fraction of
+modes with $p_k\ge 0.05$, normalized mode entropy as
+$-\sum_{k=1}^{K} p_k\log p_k / \log K$, and mode imbalance as
+$\mathrm{std}(p_1,\ldots,p_K)$. Thus, higher coverage and entropy indicate
+broader exploration, while lower imbalance indicates more even mass allocation
+across discovered modes. The primary metrics are therefore mode coverage,
+normalized mode entropy, and mode imbalance. KSD and mean log probability are
+retained as secondary diagnostics. The fixed-budget results are summarized in
+\cref{fig:mix8_summary}, which reports the mean final metrics across seeds
+together with one standard deviation.
 
 \begin{figure}[t]
   \centering
   \safeincludegraphics[width=0.9\linewidth]{../figures/mixture2d/mix8/mix8_summary_metric_panels.png}
   \caption{Mixture2D (mix8) fixed-budget final-checkpoint summary across methods.
-  The four
-  panels report mode coverage, mode entropy, mode imbalance, and KSD;
-  markers show mean values across seeds and error bars indicate one standard
-  deviation. Higher is better for coverage and entropy, while lower is better
-  for mode imbalance and KSD.}
+  The four panels report mode coverage, mode entropy, mode imbalance, and KSD.
+  Higher is better for coverage and entropy, while lower is better for mode
+  imbalance and KSD.}
   \label{fig:mix8_summary}
 \end{figure}
 
-\begin{table}[t]
-  \centering
-  \small
-  \setlength{\tabcolsep}{7pt}
-  \caption{Mixture2D (mix8) mean final metrics over five seeds at the fixed
-  1,000-iteration budget. Higher is better for coverage and entropy; lower is
-  better for KSD. We omit minimum mass because it is zero for all methods at
-  this budget. This table summarizes the fixed-budget multimodal result:
-  Adapt-MR-SVGD gives the strongest overall exploration, while vanilla and
-  Strang spread more than MR-SVGD but remain far less stable by KSD.}
-  \begin{tabular}{lrrr}
-    \toprule
-    Method & Coverage$\uparrow$ & Entropy$\uparrow$ & KSD$\downarrow$ \\
-    \midrule
-    Adapt-MR-SVGD & 0.500 & 0.544 & 0.360 \\
-    SVGD          & 0.375 & 0.453 & 3162.9 \\
-    Strang-SVGD   & 0.325 & 0.403 & 3883.0 \\
-    MR-SVGD       & 0.250 & 0.238 & 74.3 \\
-    SGHMC         & 0.125 & 0.000 & 2.29 \\
-    SGLD          & 0.125 & 0.000 & 2.53 \\
-    \bottomrule
-  \end{tabular}
-  \label{tab:mix8_summary}
-\end{table}
+\Cref{fig:mix8_summary} shows that Adapt-MR-SVGD gives the strongest
+fixed-budget multimodal result. It attains the highest mean final coverage and
+entropy across seeds ($0.500$ and $0.544$, respectively) while keeping KSD at
+$0.360$, far below the single-rate particle baselines. Vanilla SVGD and
+Strang-SVGD spread farther around the ring than MR-SVGD, but that extra spread
+is unstable, with final KSD in the $10^3$ range. Fixed MR-SVGD is much more
+stable than those baselines, yet it still underexplores the ring, reaching only
+$0.250$ coverage and $0.238$ entropy.
 
-Under this harder off-mode initialization, adaptive MR-SVGD still gives the
-strongest overall multimodal exploration at the fixed budget, now reaching the
-highest mean final mode coverage and mode entropy across seeds
-($0.500$ and $0.544$, respectively); \cref{tab:mix8_summary} provides the
-corresponding mean-over-seeds summary, while \cref{fig:mix8_summary} carries
-the cross-seed variability. The shared multiscale kernel also makes the
-single-rate particle baselines more competitive than under the plain single-RBF
-setting: vanilla SVGD and Strang-SVGD both cover more modes and attain higher
-mode entropy, but their KSD values remain far worse than the adaptive method,
-so the extra spread still comes with much weaker stability. Fixed MR-SVGD
-remains stable and slightly improves its KSD over the single-RBF version, but
-it does not match the adaptive variant on the main multimodal metrics. The
-imbalance panel in \cref{fig:mix8_summary} complements coverage and entropy by
-showing that the adaptive method also allocates mass more evenly across the
-discovered modes. SGLD and SGHMC remain trapped in a single mode, with final
-coverage fixed at $0.125$ and zero mode entropy. The minimum mass statistic is
-still zero for all methods at this budget, so in this redesigned benchmark
-coverage, entropy, and imbalance are the informative multimodal diagnostics
-while KSD remains a secondary stability measure.
+The imbalance panel further shows that Adapt-MR-SVGD distributes mass more
+evenly across the modes it discovers. By contrast, SGLD and SGHMC remain near a
+single mode, with coverage fixed at $0.125$ and zero entropy, so their small
+KSD values do not indicate successful multimodal exploration.
 
 \subsection{UCI logistic regression}
 
