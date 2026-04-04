@@ -221,22 +221,21 @@ KSD values do not indicate successful multimodal exploration.
 
 \subsection{UCI logistic regression}
 
-We benchmark Bayesian logistic regression on breast\_cancer, ionosphere,
-spambase, and a5a, using a Gaussian prior on weights (as implemented in the
-benchmark script) and 5 seeds per dataset. We report test accuracy, NLL, ECE,
-ESS, and mean log probability; KSD is optional and disabled by default in this
-benchmark configuration. Results are summarized with per-dataset panels in
-\cref{fig:uci_summary} and a grouped best-NLL summary table (particle methods
-only) in \cref{tab:uci_nll_summary}; both use the best finite-NLL checkpoint
-selected under the global predictive stopping policy
-\cite{dua2019uci}.
+We benchmark Bayesian logistic regression on four UCI datasets
+\cite{dua2019uci}: breast cancer, ionosphere, spambase, and a5a. All four are
+binary tasks. Each dataset is run over five seeds with a
+Gaussian prior on the regression weights. We emphasize test NLL, accuracy, and ECE, with ESS reported as a
+supplemental mixing diagnostic. Per-dataset summaries are shown in
+\cref{fig:uci_summary}, and the particle-only best-NLL summary is reported in
+\cref{tab:uci_nll_summary}; both use the best finite-NLL checkpoint selected by
+the predictive stopping rule.
 
 \begin{figure}[t]
   \centering
   \begin{subfigure}[t]{0.9\linewidth}
     \centering
     \safeincludegraphics[width=\linewidth]{../figures/uci/breast_cancer/breast_cancer_summary_metric_panels.png}
-    \caption{breast\_cancer}
+    \caption{Breast cancer}
     \label{fig:uci_breast_cancer}
   \end{subfigure}
 
@@ -245,14 +244,13 @@ selected under the global predictive stopping policy
   \begin{subfigure}[t]{0.9\linewidth}
     \centering
     \safeincludegraphics[width=\linewidth]{../figures/uci/ionosphere/ionosphere_summary_metric_panels.png}
-    \caption{ionosphere}
+    \caption{Ionosphere}
     \label{fig:uci_ionosphere}
   \end{subfigure}
   \caption{UCI logistic regression summary across datasets. Each subpanel
-  reports the best-checkpoint mean across seeds with one standard deviation for
-  test accuracy, NLL, ECE, and ESS, where the checkpoint is selected by the
-  NLL-based early-stop monitor. Higher is better for accuracy and ESS; lower is
-  better for NLL and ECE. Remaining datasets are shown in the continued panel.}
+  reports test accuracy, NLL, ECE, and ESS at the best finite-NLL checkpoint
+  selected by the predictive stopping rule. Remaining datasets are shown in the
+  continued panel.}
   \label{fig:uci_summary}
 \end{figure}
 
@@ -262,7 +260,7 @@ selected under the global predictive stopping policy
   \begin{subfigure}[t]{0.9\linewidth}
     \centering
     \safeincludegraphics[width=\linewidth]{../figures/uci/spambase/spambase_summary_metric_panels.png}
-    \caption{spambase}
+    \caption{Spambase}
     \label{fig:uci_spambase}
   \end{subfigure}
 
@@ -285,19 +283,19 @@ selected under the global predictive stopping policy
     \toprule
     Method & Best NLL$\downarrow$ & Acc@best NLL$\uparrow$ & Wall@best (s)$\downarrow$ \\
     \midrule
-    \multicolumn{4}{l}{\textit{breast\_cancer}} \\
+    \multicolumn{4}{l}{\textit{Breast cancer}} \\
     Adapt-MR-SVGD & 0.028 & 0.987 & 3.7 \\
     SVGD & 0.091 & 0.979 & 1.4 \\
     Strang-SVGD & 0.096 & 0.979 & 4.0 \\
     MR-SVGD & 0.096 & 0.979 & 3.4 \\
     \midrule
-    \multicolumn{4}{l}{\textit{ionosphere}} \\
+    \multicolumn{4}{l}{\textit{Ionosphere}} \\
     Adapt-MR-SVGD & 0.414 & 0.909 & 5.2 \\
     MR-SVGD & 0.416 & 0.889 & 3.9 \\
     Strang-SVGD & 0.473 & 0.874 & 3.0 \\
     SVGD & 0.473 & 0.909 & 0.6 \\
     \midrule
-    \multicolumn{4}{l}{\textit{spambase}} \\
+    \multicolumn{4}{l}{\textit{Spambase}} \\
     SVGD & 0.273 & 0.925 & 0.8 \\
     Strang-SVGD & 0.289 & 0.922 & 3.3 \\
     Adapt-MR-SVGD & 0.358 & 0.882 & 6.6 \\
@@ -310,44 +308,40 @@ selected under the global predictive stopping policy
     MR-SVGD & 0.500 & 0.793 & 6.6 \\
     \bottomrule
   \end{tabular}
-  \caption{UCI logistic-regression particle-method summary across the five-seed
-  suite. For each dataset and method, we select the best finite-NLL checkpoint
-  per seed and report the method-wise mean over the finite best-checkpoint
-  values for NLL, the corresponding accuracy, and wall time. ECE is summarized
+  \caption{UCI logistic-regression particle-method summary. For each dataset
+  and method, we average over the finite best-NLL checkpoints selected per seed
+  and report NLL, the corresponding accuracy, and wall time. ECE is summarized
   in the per-dataset panels of \cref{fig:uci_summary}.}
   \label{tab:uci_nll_summary}
 \end{table}
 
-UCI logistic regression still yields the weakest particle-method separation in
-the paper, but the refreshed summary in \cref{tab:uci_nll_summary} is more
-favorable to Adapt-MR-SVGD than before. Among particle methods, it now achieves
-the best NLL on breast\_cancer, ionosphere, and a5a, while vanilla SVGD is best
-on spambase. The per-dataset panels in \cref{fig:uci_summary} extend this
-comparison to the chain baselines and show that SGHMC, and on ionosphere also
-SGLD, can still be competitive or superior in NLL at much lower wall time, but
-with ESS far below the particle methods. Accuracy remains tightly clustered on
-these datasets, so NLL is the more discriminative predictive metric. Overall,
-the rerun leaves the qualitative conclusion unchanged: adaptive multirate
-splitting is competitive on these relatively benign predictive posteriors, but
-its clearest gains appear on the more anisotropic, multimodal, and
-hierarchical targets.
+The particle-only summary in \cref{tab:uci_nll_summary} shows that
+Adapt-MR-SVGD attains the best NLL on breast cancer, ionosphere, and a5a,
+whereas vanilla SVGD is best on spambase. The broader comparison in
+\cref{fig:uci_summary} extends this view to the chain baselines and shows that
+SGHMC on spambase and a5a, and SGLD on ionosphere, can achieve lower NLL at
+substantially lower wall time, albeit with ESS far below the particle methods.
+Accuracy varies little across methods on these datasets, so NLL provides the
+more discriminative predictive comparison. Overall, UCI logistic regression is
+a comparatively mild benchmark for multirate splitting: adaptive multirate
+updates remain competitive, but the clearest multirate gains in this paper
+appear on the more anisotropic, multimodal, and hierarchical targets.
 
 \subsection{Bayesian neural network}
 
-We evaluate a one-hidden-layer BNN (hidden width 32) on spambase and a5a,
-using a Gaussian prior, a fixed split seed, and 5 sampler seeds per dataset.
-For each dataset, we carve a validation split from the training data, select
-checkpoints by validation NLL under the global predictive stopping policy, and
-report test accuracy, test NLL, test ECE, ESS, and mean log probability at the
-selected checkpoint. KSD is optional and disabled by default in this
-configuration.
+We evaluate a one-hidden-layer Bayesian neural network (hidden width 32) on
+Spambase and a5a, using a Gaussian prior, one shared train/validation split per
+dataset, and five sampler seeds. Checkpoints are selected by validation NLL
+under the global predictive stopping rule, and we report test NLL, accuracy,
+ECE, ESS, and mean log probability at the selected checkpoint. Per-dataset
+summaries appear in \cref{fig:bnn_summary}.
 
 \begin{figure}[t]
   \centering
   \begin{subfigure}[t]{0.9\linewidth}
     \centering
     \safeincludegraphics[width=\linewidth]{../figures/bnn/spambase/spambase_summary_metric_panels.png}
-    \caption{spambase}
+    \caption{Spambase}
     \label{fig:bnn_spambase}
   \end{subfigure}
 
@@ -359,68 +353,60 @@ configuration.
     \caption{a5a}
     \label{fig:bnn_a5a}
   \end{subfigure}
-  \caption{BNN summary across datasets. Each subpanel reports the
-  best-checkpoint mean across seeds with one standard deviation for test
-  accuracy, NLL, ECE, and ESS, where the checkpoint is selected by the
-  validation-NLL early-stop monitor. Higher is better for accuracy and ESS;
-  lower is better for NLL and ECE.}
+  \caption{BNN predictive summary across datasets. Each subpanel reports test
+  accuracy, NLL, ECE, and ESS at the checkpoint selected by validation NLL.}
   \label{fig:bnn_summary}
 \end{figure}
 
-\begin{table}[t]
-  \centering
-  \scriptsize
-  \setlength{\tabcolsep}{4pt}
-  \begin{tabular}{lccc}
-    \toprule
-    Method & Best NLL$\downarrow$ & Acc@best NLL$\uparrow$ & Wall@best (s)$\downarrow$ \\
-    \midrule
-    \multicolumn{4}{l}{\textit{spambase}} \\
-    Adapt-MR-SVGD & 0.174 & 0.940 & 35.7 \\
-    Strang-SVGD & 0.187 & 0.930 & 51.2 \\
-    SVGD & 0.187 & 0.930 & 21.1 \\
-    MR-SVGD & 0.188 & 0.931 & 51.5 \\
-    \midrule
-    \multicolumn{4}{l}{\textit{a5a}} \\
-    MR-SVGD & 0.334 & 0.844 & 5.3 \\
-    Adapt-MR-SVGD & 0.347 & 0.836 & 8.1 \\
-    SVGD & 0.362 & 0.834 & 17.5 \\
-    Strang-SVGD & 0.378 & 0.832 & 49.6 \\
-    \bottomrule
-  \end{tabular}
-  \caption{BNN particle-method summary over five seeds. For each dataset and
-  method, we select the best finite-validation-NLL checkpoint per seed and
-  report the method-wise mean of the corresponding test NLL, test accuracy, and
-  wall time. ECE is summarized in the per-dataset panels of
-  \cref{fig:bnn_summary}.}
-  \label{tab:bnn_nll_summary}
-\end{table}
+% \begin{table}[t]
+%   \centering
+%   \scriptsize
+%   \setlength{\tabcolsep}{4pt}
+%   \begin{tabular}{lccc}
+%     \toprule
+%     Method & Best NLL$\downarrow$ & Acc@best NLL$\uparrow$ & Wall@best (s)$\downarrow$ \\
+%     \midrule
+%     \multicolumn{4}{l}{\textit{Spambase}} \\
+%     Adapt-MR-SVGD & 0.174 & 0.940 & 35.7 \\
+%     Strang-SVGD & 0.187 & 0.930 & 51.2 \\
+%     SVGD & 0.187 & 0.930 & 21.1 \\
+%     MR-SVGD & 0.188 & 0.931 & 51.5 \\
+%     \midrule
+%     \multicolumn{4}{l}{\textit{a5a}} \\
+%     MR-SVGD & 0.334 & 0.844 & 5.3 \\
+%     Adapt-MR-SVGD & 0.347 & 0.836 & 8.1 \\
+%     SVGD & 0.362 & 0.834 & 17.5 \\
+%     Strang-SVGD & 0.378 & 0.832 & 49.6 \\
+%     \bottomrule
+%   \end{tabular}
+%   \caption{BNN particle-method summary. For each dataset and method, we average
+%   over the per-seed checkpoints selected by best finite validation NLL and
+%   report test NLL, the corresponding test accuracy, and wall time. ECE is
+%   summarized in the per-dataset panels of \cref{fig:bnn_summary}.}
+%   \label{tab:bnn_nll_summary}
+% \end{table}
 
-The two BNN datasets give a more informative but less uniform predictive story
-than the earlier small-data configuration. On spambase, Adapt-MR-SVGD attains
-the best overall test NLL ($0.174$) and the highest mean test accuracy
-($0.940$), with the remaining particle methods clustered together around
-$0.187$. On a5a, the ranking shifts: MR-SVGD attains the best overall test NLL
-($0.334$) and the highest mean test accuracy ($0.844$), Adapt-MR-SVGD remains
-the second-best particle method ($0.347$), and the single-rate particle
-variants are again worse. The chain baselines are competitive in isolated
-cases---SGHMC on spambase and SGLD on a5a---but the multirate particle methods
-form the strongest pair overall across the two datasets. This makes the BNN
-benchmark corroborative rather than primary evidence: multirate structure improves
-predictive quality over the single-rate particle baselines, but the preferred
-multirate variant depends on the dataset.
+The per-dataset summaries in \cref{fig:bnn_summary} show a split outcome
+between the two datasets. On Spambase, Adapt-MR-SVGD attains the best test NLL
+and the highest mean test accuracy, while the remaining particle methods
+cluster tightly together. On a5a, the ranking shifts: MR-SVGD attains the best
+overall test NLL and the highest mean test accuracy, with Adapt-MR-SVGD
+remaining the second-best particle method and the single-rate particle variants
+again worse. The same panels show that SGHMC on Spambase and SGLD on a5a
+remain competitive, but with ESS far below the particle methods.
 
 \subsection{Large-scale hierarchical logistic regression}
 
 To stress-test multirate behavior in a high-dimensional anisotropic posterior,
-we use a large-scale hierarchical logistic regression benchmark with grouped
-random effects. The model combines high parameter dimension with funnel-like
-geometry induced by a global scale parameter, making it a natural benchmark for
-joint quality-cost assessment of SVGD variants.
+we study a large-scale hierarchical logistic regression benchmark with grouped
+random effects. The combination of many group-level effects and a global scale
+parameter induces funnel-like geometry and strong local stiffness, making this
+benchmark a demanding joint test of predictive quality, robustness, and cost
+for the SVGD variants.
 
 \paragraph{Problem definition}
 Given binary outcomes $y_i\in\{0,1\}$, sparse features $x_i\in\mathbb{R}^p$, and
-group indices $g_i\in\{1,\ldots,G\}$, we define
+group indices $g_i\in\{1,\ldots,G\}$, we consider
 \begin{equation}
 \begin{aligned}
 y_i \mid x_i,g_i,\beta,\alpha,u
@@ -456,14 +442,15 @@ y_i;\sigma\!\left(\alpha+x_i^\top\beta+u_{g_i}\right)\right)\right] \\
 \end{equation}
 
 \paragraph{Protocol}
-For the long-tail grouped setting, we run $n=10^6$ observations with $p=300$
-features and $G=50{,}000$ groups. Each method runs up to 1,000 iterations with
-checkpointing every 20 iterations and 5 random seeds; particle methods use 32
-particles, and single-chain baselines use a rolling-window evaluation set. This
-benchmark follows the global predictive NLL-based stopping policy and adds a
-two-checkpoint non-finite fail-fast guard because unstable methods can quickly
-leave the finite-NLL regime. ECE is reported as a metric but is not used as a
-stopping trigger.
+Our primary HLR benchmark uses a long-tail group-frequency distribution with
+$n=10^6$ observations, $p=300$ sparse features, and $G=50{,}000$ groups. Each
+method runs for up to 1,000 iterations with checkpoints every 20 iterations
+over five seeds. Particle methods use 32 particles, whereas single-chain
+baselines are evaluated with rolling-window checkpoint summaries. As in the
+other predictive benchmarks, checkpoint selection and early stopping are driven
+by predictive NLL; here we additionally stop after two consecutive non-finite
+checkpoints to prevent unstable runs from drifting far outside the finite-NLL
+regime. A uniform-group variant is reported below as a sensitivity check.
 
 \begin{table}[t]
   \centering
@@ -471,7 +458,7 @@ stopping trigger.
   \setlength{\tabcolsep}{4pt}
   \begin{tabular}{lcccc}
     \toprule
-    Method & Finite-best$\uparrow$ & Best NLL$\downarrow$ & Acc@best NLL$\uparrow$ & Wall@best (s)$\downarrow$ \\
+    Method & Finite seeds$\uparrow$ & Best NLL$\downarrow$ & Acc@best NLL$\uparrow$ & Wall@best (s)$\downarrow$ \\
     \midrule
     Adapt-MR-SVGD & 5/5 & 0.613 & 0.658 & 123.3 \\
     MR-SVGD & 5/5 & 0.623 & 0.656 & 92.5 \\
@@ -482,22 +469,26 @@ stopping trigger.
     \bottomrule
   \end{tabular}
   \caption{HLR long-tail summary over five seeds. For each seed and method, we
-  select the best finite-NLL checkpoint; the table reports method-wise means of
-  that best NLL, the accuracy at that checkpoint, and the corresponding wall
-  time. ``Seeds with finite best''
-  counts runs that reached at least one finite-NLL checkpoint before stopping.
-  This table is the main hierarchical stress test: Adapt-MR-SVGD achieves the
-  best best-NLL while remaining finite on all seeds, and MR-SVGD is the
-  closest lower-cost baseline.}
+  select the best finite-NLL checkpoint and report method-wise means of that
+  NLL, the accuracy at the selected checkpoint, and the corresponding wall
+  time. ``Finite seeds'' counts runs that reached at least one finite-NLL
+  checkpoint before stopping. This is the main hierarchical stress test:
+  Adapt-MR-SVGD attains the lowest mean best-NLL while remaining finite on all
+  seeds, and MR-SVGD is the closest lower-cost baseline.}
   \label{tab:hlr_longtail_summary}
 \end{table}
 
 \paragraph{Result summary}
-\cref{tab:hlr_longtail_summary} shows that Adapt-MR-SVGD achieves the best mean
-best-NLL while remaining finite across all seeds. MR-SVGD is a close second in
-NLL and reaches its best checkpoint faster on average (92.5\,s versus
-123.3\,s). SVGD/Strang-SVGD and SGHMC show frequent non-finite behavior in this
-regime, while SGLD remains finite more often but with substantially worse NLL.
+\cref{tab:hlr_longtail_summary} shows the clearest predictive separation among
+the particle methods in the paper. Adapt-MR-SVGD attains the lowest mean
+best-NLL ($0.613$) while remaining finite on all five seeds. MR-SVGD is the
+closest competitor, with only slightly worse NLL ($0.623$) and a lower wall
+time at the selected checkpoint (92.5\,s versus 123.3\,s). By contrast,
+vanilla SVGD, Strang-SVGD, and SGHMC frequently fail to reach stable finite
+checkpoints in this regime, while SGLD remains finite more often but with
+substantially worse predictive performance. In the long-tail setting, the main
+distinction is therefore not only final NLL, but whether the method remains
+numerically viable under the hierarchical funnel geometry.
 
 \begin{table}[t]
   \centering
@@ -505,7 +496,7 @@ regime, while SGLD remains finite more often but with substantially worse NLL.
   \setlength{\tabcolsep}{4pt}
   \begin{tabular}{lcccc}
     \toprule
-    Method & Finite-best$\uparrow$ & Best NLL$\downarrow$ & Acc@best NLL$\uparrow$ & Wall@best (s)$\downarrow$ \\
+    Method & Finite seeds$\uparrow$ & Best NLL$\downarrow$ & Acc@best NLL$\uparrow$ & Wall@best (s)$\downarrow$ \\
     \midrule
     Adapt-MR-SVGD & 5/5 & 0.681 & 0.601 & 94.6 \\
     SVGD & 1/5 & 0.700 & 0.548 & 54.9 \\
@@ -515,17 +506,16 @@ regime, while SGLD remains finite more often but with substantially worse NLL.
     SGHMC & 5/5 & 0.791 & 0.554 & 79.7 \\
     \bottomrule
   \end{tabular}
-  \caption{HLR uniform-group summary over five seeds. As in
-  \cref{tab:hlr_longtail_summary}, each entry uses the best finite-NLL
-  checkpoint per seed and reports method-wise means for NLL, accuracy at that
-  checkpoint, and wall time.}
+  \caption{HLR uniform-group summary over five seeds. Entries are defined as in
+  \cref{tab:hlr_longtail_summary}, but with balanced group assignments as a
+  sensitivity check.}
   \label{tab:hlr_uniform_summary}
 \end{table}
 
 \paragraph{Uniform-group sensitivity check}
-\cref{tab:hlr_uniform_summary} provides a compact robustness check under
-uniform group assignments. Adapt-MR-SVGD remains best in mean best-NLL with
-full finite-seed coverage (5/5), and MR-SVGD remains close while being fastest
-among methods with full finite coverage. This supports the same ordering seen
-in the long-tail regime while keeping the long-tail setting as the primary
-stress test for our main claim.
+\cref{tab:hlr_uniform_summary} confirms the same qualitative ordering under a
+less pathological grouping structure. Adapt-MR-SVGD again attains the lowest
+mean best-NLL with full finite-seed coverage, while MR-SVGD remains close in
+NLL and is the fastest among methods with full finite coverage. The long-tail
+regime remains the more discriminative benchmark, but the relative ranking of
+the multirate variants is stable across both group-assignment patterns.
