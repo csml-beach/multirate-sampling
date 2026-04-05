@@ -6,15 +6,14 @@ target, a suite of 2D synthetic targets, UCI logistic regression, a 2D Gaussian
 mixture (mix8), a one-hidden-layer Bayesian neural network (BNN), and a
 large-scale hierarchical logistic-regression (HLR) benchmark. The comparison
 focuses on both statistical quality and computational cost. This section defines
-the shared diagnostics and protocol; benchmark-specific details are introduced
-where needed below.
+the shared diagnostics and protocol.
 
 \subsection{Evaluation Metrics}
 
 Evaluation combines distributional fidelity, predictive performance, mixing, and
 explicit computational cost accounting. Metrics used across multiple
-benchmarks are defined here once; benchmark-specific diagnostics are introduced
-locally.
+benchmarks are defined here once. Benchmark-specific metrics are introduced
+in their respective sections.
 
 \paragraph{Moment fidelity}
 When reference moments are available, we report
@@ -143,9 +142,11 @@ guard, which we note locally when it is active.
 
 \paragraph{Checkpointing and model selection}
 Unless noted otherwise, experiments run for up to 1,000 iterations over five
-seeds with checkpointed evaluation every 20 iterations. All benchmarks use a
-patience-based early-stopping rule triggered by persistent degradation of a
-designated monitor metric. Pure sampling benchmarks use KSD as the monitor
+seeds with checkpointed evaluation every 20 iterations. All methods are
+implemented in a shared JAX codebase with unified benchmarking, checkpointing,
+metric computation, and plotting pipelines to support fair comparison and
+reproducibility. All benchmarks use a patience-based early-stopping rule
+triggered by persistent degradation of a designated monitor metric. Pure sampling benchmarks use KSD as the monitor
 (50D Gaussian, 2D synthetic targets, and Mixture2D), whereas predictive
 benchmarks use held-out NLL (UCI logistic regression, BNN, and HLR). For each
 run, we retain the best finite checkpoint under that monitor before stopping.

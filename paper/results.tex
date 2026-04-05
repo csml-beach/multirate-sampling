@@ -19,7 +19,7 @@ and a 5-seed ablation. Reported metrics are moment errors
   \safeincludegraphics[width=0.9\linewidth]{../figures/50d/summary_metric_panels.png}
   \caption{50D Gaussian final-checkpoint summary across methods. The four panels
   report $\|\hat{\mu}-\mu\|_2$, $\|\hat{\Sigma}-\Sigma\|_F$, KSD, and ESS,
-  respectively; markers show mean values across seeds and error bars indicate
+  respectively. Markers show mean values across seeds and error bars indicate
   one standard deviation. Lower is better for the first three metrics, whereas
   higher is better for ESS. This figure highlights robustness differences under
   strong anisotropy: Adapt-MR-SVGD is the only particle variant that keeps both
@@ -221,9 +221,9 @@ KSD values do not indicate successful multimodal exploration.
 We benchmark Bayesian logistic regression on four UCI datasets
 \cite{dua2019uci}: breast cancer, ionosphere, spambase, and a5a. All four are
 binary tasks with a Gaussian prior on the regression weights. We emphasize test NLL, accuracy, and ECE, with ESS reported as a
-supplemental mixing diagnostic. Per-dataset summaries are shown in
-\cref{fig:uci_summary}, and the particle-only best-NLL summary is reported in
-\cref{tab:uci_nll_summary}; both use the best finite-NLL checkpoint selected by
+supplemental mixing diagnostic. Summaries are shown in
+\cref{fig:uci_summary}, and the particle-method best-NLL summary is reported in
+\cref{tab:uci_nll_summary}.  In both we use the best finite-NLL checkpoint selected by
 the predictive stopping rule.
 
 \begin{figure}[t]
